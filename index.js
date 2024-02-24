@@ -17,6 +17,7 @@ async function loadAccounts() {
     console.log(`${i - 1} copy accounts loaded`)
     return listenKey
 }
+
 function copyTrade(trade) {
     const data = {
         symbol: trade.s,
@@ -68,3 +69,4 @@ async function start() {
 }
 
 start()
+// module.exports = { start }
