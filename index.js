@@ -1,7 +1,11 @@
 require("dotenv").config();
+const frm = document.querySelector("input");
+const divAlert = document.querySelector(".alert");
+
 const WebSocket = require('ws')
 const api = require("./api")
 const accounts = []
+
 
 async function loadAccounts() {
     const { listenKey } = await api.connectAccount()
@@ -44,9 +48,14 @@ function copyTrade(trade) {
 }
 
 const oldOrders = {}
+
 async function start() {
     const listenKey = await loadAccounts()
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey}`)
+    if (listenKey) {
+        divAlert.className = "alert alert-success mt-3";
+        divAlert.innerText = `Ok! waiting trades... `;
+    }
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data)
         if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
@@ -58,15 +67,18 @@ async function start() {
             console.log('data', data)
             const promises = accounts.map(acc => api.newOrder(data, acc.apiKey, acc.apiSecret))
             const results = await Promise.allSettled(promises)
+            divAlert.className = "alert alert-success mt-3";
+            divAlert.innerText = `Ok! Vinho  cadastrado com sucesso. Código: `;
             console.log('resultado', results)
             process.exit(0)
         }
     }
     console.log('waiting trades...')
+    alert("waiting trades...");
     setInterval(() => {
         api.connectAccount()
     }, 59 * 60 * 1000)
 }
-
-start()
-// module.exports = { start }
+function teste() {
+    alert("Função chamada com sucesso!");
+}
