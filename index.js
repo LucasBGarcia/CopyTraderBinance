@@ -1,14 +1,70 @@
 require("dotenv").config();
 const frm = document.querySelector("input");
-const divAlert = document.querySelector(".alert");
-
+const axios = require('axios');
+const crypto = require('crypto');
 const WebSocket = require('ws')
-const api = require("./api")
+const fs = require('fs');
+
 const accounts = []
 
+const apiUrl = process.env.BINANCE_API_URL
 
+async function connectAccount() {
+    const apiKey = process.env.TRADER0_API_KEY
+    try {
+        const result = await axios({
+            method: 'POST',
+            url: `${apiUrl}/v3/userDataStream`,
+            headers: { 'X-MBX-APIKEY': apiKey },
+        })
+        console.log('resultado', result.data)
+        return result.data
+    } catch (err) {
+        console.error(err.response ? err.response : err.message)
+    }
+}
+
+async function newOrder(data, apiKey, apiSecret) {
+    data.timestamp = Date.now();
+    data.recvWindow = 60000;
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(data)}`).digest('hex');
+    console.log('signature', signature)
+
+    const qs = `?${new URLSearchParams({ ...data, signature })}`
+    console.log('qs', qs)
+    try {
+        const result = await axios({
+            method: 'POST',
+            url: `${apiUrl}/v3/order${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        })
+        console.log('newOrder result', result)
+        return result.data
+    } catch (err) {
+        console.log('erro', err)
+        console.error(err.respose ? err.respose : err.message)
+    }
+}
+function teste() {
+    const rawData = fs.readFileSync('config.json');
+    const config = JSON.parse(rawData);
+    console.log('BINANCE_API_URL:', config.BINANCE_API_URL);
+    console.log('BINANCE_WS_URL:', config.BINANCE_WS_URL);
+    console.log('API_KEY do Trader 0:', config.TRADER[0].API_KEY);
+    console.log('API_SECRET do Trader 0:', config.TRADER[0].API_SECRET);
+    console.log('API_KEY do Trader 1:', config.TRADER[1].API_KEY);
+    console.log('API_SECRET do Trader 1:', config.TRADER[1].API_SECRET);
+    const divAlert = document.querySelector(".alert"); // Mova a inicialização aqui
+    alert("Função chamada com sucesso!");
+    if (divAlert) {
+        divAlert.className = "alert alert-success mt-3";
+        divAlert.innerText = `Ok! waiting trades... `;
+    } else {
+        console.error("Div 'alert' not found.");
+    }
+}
 async function loadAccounts() {
-    const { listenKey } = await api.connectAccount()
+    const { listenKey } = await connectAccount()
     console.log(`listenKey: ${listenKey}`)
     let i = 1;
     while (process.env[`TRADER${i}_API_KEY`]) {
@@ -50,6 +106,7 @@ function copyTrade(trade) {
 const oldOrders = {}
 
 async function start() {
+    const divAlert = document.querySelector(".alert");
     const listenKey = await loadAccounts()
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey}`)
     if (listenKey) {
@@ -65,7 +122,7 @@ async function start() {
             const data = copyTrade(trade)
 
             console.log('data', data)
-            const promises = accounts.map(acc => api.newOrder(data, acc.apiKey, acc.apiSecret))
+            const promises = accounts.map(acc => newOrder(data, acc.apiKey, acc.apiSecret))
             const results = await Promise.allSettled(promises)
             divAlert.className = "alert alert-success mt-3";
             divAlert.innerText = `Ok! Vinho  cadastrado com sucesso. Código: `;
@@ -76,9 +133,6 @@ async function start() {
     console.log('waiting trades...')
     alert("waiting trades...");
     setInterval(() => {
-        api.connectAccount()
+        connectAccount()
     }, 59 * 60 * 1000)
-}
-function teste() {
-    alert("Função chamada com sucesso!");
 }

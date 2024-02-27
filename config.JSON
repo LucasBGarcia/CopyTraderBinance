@@ -1,0 +1,14 @@
+{
+    "BINANCE_API_URL": "https://api.binance.com/api",
+    "BINANCE_WS_URL": "wss://stream.binance.com:9443/ws",
+    "TRADER": [
+        {
+            "API_KEY": "4SYTGW0z943oiusiWL0NU89FWBkNAT9Fh7YaLSrhvmxeowQV8slnOVk5Ue5Qoxxo",
+            "API_SECRET": "bbFwPoARmSK6Pq3L23NRzAY6Fji9BkjjSAuIy82bl43BZ8vwM2UE5hJmncBvZBiP"
+        },
+        {
+            "API_KEY": "4SYTGW0z943oiusiWL0NU89FWBkNAT9Fh7YaLSrhvmxeowQV8slnOVk5Ue5Qoxxo",
+            "API_SECRET": "bbFwPoARmSK6Pq3L23NRzAY6Fji9BkjjSAuIy82bl43BZ8vwM2UE5hJmncBvZBiP"
+        }
+    ]
+}
