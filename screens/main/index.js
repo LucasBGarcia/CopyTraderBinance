@@ -1,7 +1,7 @@
 const { ipcRenderer } = require("electron");
 require("dotenv").config();
-const WebSocket = require('ws');
-const api = require("../../api");
+const WebSocket = require('ws')
+const api = require("../../api")
 const accounts = []
 
 async function loadAccounts() {
@@ -79,8 +79,9 @@ ipcRenderer.on("dados:response", (event, dados) => {
 });
 
 function teste() {
-    // window.Bridge.teste('dados enviados');
-    const valorIndex = window.Bridge.testeRetorno()
-    console.log('valorIndex', valorIndex)
+    console.log('testando')
+    window.Bridge.teste('dados enviados');
+    // const valorIndex = window.Bridge.testeRetorno()
+    // console.log('valorIndex', valorIndex)
 }
 // start()

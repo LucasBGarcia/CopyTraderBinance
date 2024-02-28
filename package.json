@@ -5,13 +5,13 @@
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "nodemon --exec electron .",
-    "start": "electron ."
+    "watch": "webpack --mode=development && nodemon --exec electron .",
+    "start": "webpack --mode=development && electron .",
+    "build": "webpack --mode=production"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
     "axios": "^1.6.7",
     "dotenv": "^16.4.5",
@@ -19,6 +19,8 @@
   },
   "devDependencies": {
     "electron": "^29.0.1",
-    "nodemon": "^2.0.19"
+    "nodemon": "^2.0.19",
+    "webpack": "^5.90.3",
+    "webpack-cli": "^5.1.4"
   }
 }
