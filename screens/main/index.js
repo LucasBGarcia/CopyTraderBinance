@@ -1,8 +1,8 @@
-import { ipcRenderer } from "electron";
+const { ipcRenderer } = require("electron");
 
 // require("dotenv").config();
-import WebSocket from 'ws'
-import api from "../../api"
+const WebSocket = require('ws')
+const api = require("../../api")
 const accounts = []
 
 async function loadAccounts() {

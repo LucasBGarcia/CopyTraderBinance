@@ -1,5 +1,5 @@
-import { app, BrowserWindow, ipcMain, globalShortcut } from "electron"
-import path from "path"
+const { app, BrowserWindow, ipcMain, globalShortcut } = require("electron")
+const path = require("path")
 
 class MainScreen {
     window;

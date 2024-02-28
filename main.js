@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain } from "electron"
-import MainScreen from "./screens/main/mainScreen"
-import fs from "fs"
+const { app, BrowserWindow, ipcMain } = require("electron")
+const MainScreen = require("./screens/main/mainScreen")
+const fs = require("fs")
 
 let curWindow;
 

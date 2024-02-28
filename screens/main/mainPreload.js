@@ -1,4 +1,4 @@
-import { contextBridge, ipcMain, ipcRenderer } from "electron"
+const { contextBridge, ipcMain, ipcRenderer } = require("electron")
 
 let saveData = (fname, city, site, car, song, mobile) => {
   let data = { fname, city, site, car, song, mobile };
