@@ -1,5 +1,5 @@
-const { app, BrowserWindow, ipcMain, globalShortcut } = require("electron")
-const path = require("path")
+import { app, BrowserWindow, ipcMain, globalShortcut } from "electron"
+import path from "path"
 
 class MainScreen {
     window;
@@ -21,7 +21,7 @@ class MainScreen {
             autoHideMenuBar: true,
             webPreferences: {
                 contextIsolation: true,
-                preload: path.join(__dirname, "./mainPreload.js"),
+                preload: path.join("./mainPreload.js"),
             },
         });
 
@@ -55,4 +55,4 @@ class MainScreen {
     }
 }
 
-module.exports = MainScreen;
+export default MainScreen;

@@ -1,8 +1,7 @@
 const { ipcRenderer } = require("electron");
-
-// require("dotenv").config();
-const WebSocket = require('ws')
-const api = require("../../api")
+require("dotenv").config();
+const WebSocket = require('ws');
+const api = require("../../api");
 const accounts = []
 
 async function loadAccounts() {
