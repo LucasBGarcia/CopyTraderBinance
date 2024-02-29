@@ -7,8 +7,9 @@ const apiKey = process.env.TRADER0_API_KEY;
 const apiSecret = process.env.TRADER0_API_SECRET;
 
 
-async function InfoAccount() {
+async function InfoAccount(apiSecret) {
     try {
+        console.log('apiSecret recebida', apiSecret)
         const timestamp = Date.now();
 
         const queryString = `timestamp=${timestamp}`;
