@@ -7,7 +7,35 @@ const apiKey = process.env.TRADER0_API_KEY;
 const apiSecret = process.env.TRADER0_API_SECRET;
 
 
-async function InfoAccount(apiSecret) {
+async function InfoAccountBalance(apiSecret, apiKey) {
+    try {
+        if (!apiSecret) {
+            throw new Error('API secret is not defined!');
+        }
+        const timeRes = await fetch(`https://api.binance.com/api/v3/time`);
+        const timeData = await timeRes.json();
+        const timestamp = timeData.serverTime;
+
+        const queryString = `timestamp=${timestamp}`;
+
+        const signature = generateSignature(queryString, apiSecret);
+
+        const result = await axios({
+            method: 'GET',
+            url: `${apiUrl}/v3/account?${queryString}&signature=${signature}`,
+            headers: {
+                'X-MBX-APIKEY': apiKey
+            },
+        });
+        const filterBalance = result.data.balances.filter(balance => balance.asset === 'USDT')
+        console.log(filterBalance)
+        return filterBalance[0].free;
+    } catch (err) {
+        console.error(err.response ? err.response.data : err.message);
+    }
+}
+
+async function InfoAccount(apiSecret, apiKey) {
     try {
         console.log('apiSecret recebida', apiSecret)
         const timestamp = Date.now();
@@ -18,9 +46,10 @@ async function InfoAccount(apiSecret) {
 
         const result = await axios({
             method: 'GET',
-            url: `https://api.binance.com/api/v3/account?${queryString}&signature=${signature}`,
+            url: `${apiUrl}/v3/account?${queryString}&signature=${signature}`,
             headers: {
                 'X-MBX-APIKEY': apiKey,
+
             },
         });
         return result.data.balances;
@@ -47,12 +76,12 @@ async function connectAccount() {
     }
 }
 
-async function newOrder(data, apiKey, apiSecret) {
+async function newOrder(data, apiKey, apiSecret, name) {
     data.timestamp = Date.now();
     data.recvWindow = 60000;
     const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(data)}`).digest('hex');
     // console.log('signature', signature)
-
+    console.log('data', data, 'NAME', name)
     const qs = `?${new URLSearchParams({ ...data, signature })}`
     try {
         const result = await axios({
@@ -63,7 +92,7 @@ async function newOrder(data, apiKey, apiSecret) {
         // console.log('newOrder result', result)
         return result.data
     } catch (err) {
-        console.log('erro', err)
+        console.log('erro', err, 'data', data, 'NAME', name)
         console.error(err.respose ? err.respose : err.message)
     }
 }
@@ -71,5 +100,6 @@ async function newOrder(data, apiKey, apiSecret) {
 module.exports = {
     connectAccount,
     newOrder,
-    InfoAccount
+    InfoAccount,
+    InfoAccountBalance
 }
