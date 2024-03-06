@@ -37,7 +37,6 @@ async function InfoAccountBalance(apiSecret, apiKey) {
 
 async function InfoAccount(apiSecret, apiKey) {
     try {
-        console.log('apiSecret recebida', apiSecret)
         const timestamp = Date.now();
 
         const queryString = `timestamp=${timestamp}`;

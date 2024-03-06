@@ -29,9 +29,25 @@ async function tradePorcentageMaster() {
     const porcentagem = (valorgasto / ValorTotalMaster) * 100;
     return porcentagem.toFixed(2);
 }
-function calcularValorPorPorcentagem(valorCarteira, porcentagem) {
+
+function encontrarPrimeiroNaoZero(numero) {
+    let valorSplit = numero.split('.')
+    let valor = valorSplit[1]
+    let contador = 0
+    for (let i = valor.length - 1; i >= 0; i--) {
+        contador++
+        if (valor[i] !== '0') {
+            return valor.length - contador + 1;
+        }
+    }
+    return 0; // Retorna 0 se todos os dígitos forem zeros
+}
+
+function calcularValorPorPorcentagem(valorCarteira, porcentagem, tradeq, valorAtual) {
+    const valor = encontrarPrimeiroNaoZero(tradeq)
     const valorReferentePorcentagem = (porcentagem / 100) * valorCarteira;
-    return valorReferentePorcentagem.toFixed(8);
+    const result = valorReferentePorcentagem / valorAtual
+    return result.toFixed(valor)
 }
 
 async function PegaMoedar(apiSecret, moeda, apiKey) {
@@ -42,36 +58,57 @@ async function PegaMoedar(apiSecret, moeda, apiKey) {
     console.log('moedaCliente', moedaCliente)
     return (moedaCliente)
 }
+function buscaValor(symbol) {
+    return new Promise((resolve, reject) => {
+        const wsPrice = new WebSocket(`${process.env.STREAM_URL}/${symbol.toLowerCase()}@ticker`);
+        wsPrice.onmessage = (event) => {
+            const obj = JSON.parse(event.data);
+            const currentPrice = parseFloat(obj.a);
+            resolve(currentPrice);
+        };
+        wsPrice.onerror = (error) => {
+            reject(error);
+        };
+    });
+}
 async function copyTrade(trade, apiSecret, apiKey) {
     let CompraCliente
     let VendaCliente
+    const valorAtual = await buscaValor(trade.s);
+
+    console.log('VALOR ATUALLLLL', valorAtual)
     if (trade.S == 'BUY') {
         console.log('PorcentagemMaster', PorcentagemMaster)
         const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey)
         console.log('ValorCarteiraCliente', ValorCarteiraCliente)
-        CompraCliente = calcularValorPorPorcentagem(ValorCarteiraCliente, PorcentagemMaster)
+        CompraCliente = calcularValorPorPorcentagem(ValorCarteiraCliente, PorcentagemMaster, trade.q, valorAtual)
         console.log('Compra', CompraCliente)
     }
     if (trade.S == 'SELL') {
+        const posicZero = encontrarPrimeiroNaoZero(trade.q)
         const ValorCarteiraCliente = await PegaMoedar(apiSecret, trade.s, apiKey)
-        VendaCliente = ValorCarteiraCliente[0].free
+        const valor = Number(ValorCarteiraCliente[0].free)
+        const arredonda = Math.floor(valor * 10) / 10
+        console.log('Valor', typeof (valor))
+        VendaCliente = arredonda.toFixed(posicZero)
+        console.log('ValorCliente', VendaCliente)
         console.log('Venda', ValorCarteiraCliente)
     }
+    console.log('trade.q', trade.q)
+    console.log('TRADE', trade)
     const data = {
         symbol: trade.s,
         side: trade.S,
         type: trade.o
     }
     if (trade.q && parseFloat(trade.q)) {
-        // console.log('trade.q', trade.q)
-        console.log('CompraCliente', typeof (CompraCliente))
-        console.log('VendaCliente', VendaCliente)
+
         if (CompraCliente) {
             console.log('ta caindo no compra cliente')
-            data.quantity = CompraCliente
+            data.quantity = CompraCliente.toString()
         } else if (VendaCliente) {
             console.log('ta caindo no venda cliente')
-            data.quantity = VendaCliente
+            data.quantity = VendaCliente.toString()
         } else {
             console.log('ta caindo trade.q', trade.q)
             data.quantity = trade.q
@@ -104,19 +141,23 @@ async function start() {
         if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
             oldOrders[trade.i] = true
             PorcentagemMaster = await tradePorcentageMaster()
-            accounts.map(async (acc) => {
+            const pr = accounts.map(async (acc) => {
                 console.log('acc', acc)
                 const data = await copyTrade(trade, acc.apiSecret, acc.apiKey)
                 console.log('retorno copyTrade dentro de start', data)
                 const promises = await api.newOrder(data, acc.apiKey, acc.apiSecret, acc.Name)
                 console.log('Promises', promises)
-                if (promises) {
-                    const results = Promise.allSettled(promises)
-                    console.log('resultado', results)
-                } else {
+                if (!promises) {
                     console.log('erro na conta', acc.Name)
                 }
+                return promises
             })
+            if (pr) {
+                const results = await Promise.allSettled(pr)
+                console.log('resultado', results)
+            } else {
+                console.log('erro no if pr')
+            }
 
             // process.exit(0)
         }
