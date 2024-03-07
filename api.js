@@ -28,7 +28,6 @@ async function InfoAccountBalance(apiSecret, apiKey) {
             },
         });
         const filterBalance = result.data.balances.filter(balance => balance.asset === 'USDT')
-        console.log(filterBalance)
         return filterBalance[0].free;
     } catch (err) {
         console.error(err.response ? err.response.data : err.message);
@@ -80,7 +79,6 @@ async function newOrder(data, apiKey, apiSecret, name) {
     data.recvWindow = 60000;
     const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(data)}`).digest('hex');
     // console.log('signature', signature)
-    console.log('data', data, 'NAME', name)
     const qs = `?${new URLSearchParams({ ...data, signature })}`
     try {
         const result = await axios({
@@ -89,10 +87,14 @@ async function newOrder(data, apiKey, apiSecret, name) {
             headers: { 'X-MBX-APIKEY': apiKey }
         })
         // console.log('newOrder result', result)
+        console.log(`SUCESSO: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity}`)
         return result.data
     } catch (err) {
-        console.log('erro', err, 'data', data, 'NAME', name)
-        console.error(err.respose ? err.respose : err.message)
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        console.log(`| FALHOU: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity} |`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
     }
 }
 
