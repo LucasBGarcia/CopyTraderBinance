@@ -146,11 +146,54 @@ async function start() {
         }
 
     };
-
+    console.log('waiting trade...')
     setInterval(() => {
         api.connectAccount();
     }, 59 * 60 * 1000);
 
 }
 
-start()
+async function menu() {
+    console.log('menu')
+
+
+    do {
+        titulo('Controle de Estoque Mercado')
+        console.log('1. Cadastrar Produto')
+        console.log('2. Produtos Cadastrados')
+        console.log('3. Vender Produto')
+        console.log('4. Caixa')
+        console.log('5. Remover Produto da Lista')
+        console.log('6. Encerrar seção')
+        var opcao = Number(prompt('Opção: '))
+        switch (opcao) {
+            case 1:
+                await start()
+                break
+            case 2: console.log('2')
+                break
+            case 3:
+                console.log('33')
+                break
+            case 4:
+                caixa()
+                break
+            case 5:
+                RemoverProduto()
+        }
+    } while (opcao != 6)
+
+
+
+}
+function titulo(mensa) {
+    console.log()
+    console.log(mensa)
+    console.log('================================================')
+}
+
+function mensagem(aviso) {
+    console.log(`\n${aviso}\n`)
+    prompt('Pressione "Enter" para continuar...')
+}
+menu()
