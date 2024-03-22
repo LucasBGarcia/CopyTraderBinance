@@ -91,17 +91,17 @@ async function copyTrade(trade, apiSecret, apiKey, apiName) {
         type: trade.o
     }
     if (trade.q && parseFloat(trade.q)) {
-
         if (CompraCliente) {
-            data.quantity = CompraCliente.toString()
+            data.quantity = Math.abs(CompraCliente).toString()
         } else if (VendaCliente) {
-            data.quantity = VendaCliente.toString()
+            data.quantity = Math.abs(VendaCliente).toString()
         } else {
             data.quantity = trade.q
         }
     }
     if (trade.p && parseFloat(trade.p)) {
-        data.price = trade.ptes
+        data.price = trade.p
+        data.timeInForce = trade.f
     }
     if (trade.f && trade.f !== "GTC") {
         data.timeInForce = trade.f
@@ -118,7 +118,6 @@ async function copyTrade(trade, apiSecret, apiKey, apiName) {
 
 
 const oldOrders = {}
-let option;
 async function start() {
     console.clear();
     ValorTotalMaster = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
@@ -127,15 +126,28 @@ async function start() {
     const listenKey = await loadAccounts();
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey}`);
     ws.onmessage = async (event) => {
-
         const trade = JSON.parse(event.data);
         if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
             oldOrders[trade.i] = true;
             PorcentagemMaster = await tradePorcentageMaster();
             const pr = accounts.map(async (acc) => {
                 const data = await copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name);
-                const promises = await api.newOrder(data, acc.apiKey, acc.apiSecret, acc.Name);
-                return promises;
+                if (trade.f === 'GTC') {
+                    const infos = {}
+                    const response = await api.GetOrder(trade.s)
+                    const orderId = response.orderId
+                    const clientOrderId = response.clientOrderId
+                    infos.orderId = orderId
+                    infos.clientOrderId = clientOrderId
+                    infos.symbol = trade.s
+                    const DeleteOrder = await api.CancelOrder(infos, acc.apiKey, acc.apiSecret, acc.Name)
+                    console.log('DELETE_ORDER: ', DeleteOrder)
+                } else {
+                    const promises = await api.newOrder(data, acc.apiKey, acc.apiSecret, acc.Name);
+                    return promises;
+                }
+                console.log('trade', trade)
+                console.log('data', data)
             });
             if (pr) {
                 const results = await Promise.allSettled(pr);
@@ -143,9 +155,11 @@ async function start() {
             } else {
                 console.log('erro no if pr');
             }
+            process.exit(0)
         }
 
     };
+    console.log('waiting')
 
     setInterval(() => {
         api.connectAccount();

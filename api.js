@@ -47,7 +47,6 @@ async function InfoAccount(apiSecret, apiKey) {
             url: `${apiUrl}/v3/account?${queryString}&signature=${signature}`,
             headers: {
                 'X-MBX-APIKEY': apiKey,
-
             },
         });
         return result.data.balances;
@@ -71,6 +70,55 @@ async function connectAccount() {
         return result.data
     } catch (err) {
         console.error(err.response ? err.response : err.message)
+    }
+}
+async function CancelOrder(data, apiKey, apiSecret, name) {
+    console.log('CANCEL_ORDER: ', data)
+    data.timestamp = Date.now();
+    data.recvWindow = 60000;
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(data)}`).digest('hex');
+    // console.log('signature', signature)
+    const qs = `?${new URLSearchParams({ ...data, signature })}`
+    try {
+        const result = await axios({
+            method: 'DELETE',
+            url: `${apiUrl}/v3/order${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        })
+        // console.log('newOrder result', result)
+        console.log(`SUCESSO: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity}`)
+        return result.data
+    } catch (err) {
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        console.log(`| FALHOU: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity} |`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
+    }
+}
+async function GetOrder(data, apiKey, apiSecret, name) {
+    console.log('CANCEL_ORDER: ', data)
+    data.timestamp = Date.now();
+    data.recvWindow = 60000;
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(data)}`).digest('hex');
+    // console.log('signature', signature)
+    const qs = `?${new URLSearchParams({ ...data, signature })}`
+    try {
+        const result = await axios({
+            method: 'GET',
+            url: `${apiUrl}/v3/openOrders${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        })
+        // console.log('newOrder result', result)
+        console.log(`SUCESSO: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity}`)
+        //VERIFICAR SE ESTÁ CORRETO, FAZENDO SEM TESTE
+        return result.data
+    } catch (err) {
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        console.log(`| FALHOU: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity} |`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
     }
 }
 
@@ -102,5 +150,7 @@ module.exports = {
     connectAccount,
     newOrder,
     InfoAccount,
-    InfoAccountBalance
+    InfoAccountBalance,
+    CancelOrder,
+    GetOrder
 }
