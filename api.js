@@ -122,8 +122,41 @@ async function GetOrder(data, apiKey, apiSecret, name) {
             headers: { 'X-MBX-APIKEY': apiKey }
         })
         // console.log('newOrder result', result)
+        console.log(`SUCESSO: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q}`)
+        console.log(data.p)
+        const filter = result.data.filter((ordem) => ordem.price === data.p && ordem.side === data.S)
+        console.log("filter", filter)
+        return filter[0]
+    } catch (err) {
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
+    }
+}
+async function GetAllOrder(data, apiKey, apiSecret, name) {
+    let infos = {
+        symbol: data.s,
+        timestamp: Date.now(),
+        recvWindow: 60000
+    }
+    console.log('CANCEL_ORDER: ', data)
+    console.log('apiKey: ', apiKey)
+    console.log(infos)
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
+    // console.log('signature', signature)
+    const qs = `?${new URLSearchParams({ ...infos, signature })}`
+    try {
+        const result = await axios({
+            method: 'GET',
+            url: `${apiUrl}/v3/allOrders${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        })
+        // console.log('newOrder result', result)
         console.log(`SUCESSO: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity}`)
         //VERIFICAR SE ESTÁ CORRETO, FAZENDO SEM TESTE
+        console.log(result.data)
         return result.data
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
@@ -164,5 +197,6 @@ module.exports = {
     InfoAccount,
     InfoAccountBalance,
     CancelOrder,
-    GetOrder
+    GetOrder,
+    GetAllOrder
 }

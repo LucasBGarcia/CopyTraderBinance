@@ -133,24 +133,21 @@ async function start() {
             const pr = accounts.map(async (acc) => {
                 console.log("trade", trade)
                 if (trade.o === 'LIMIT' && trade.x === 'CANCELED') {
-
                     const infos = {}
                     const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name)
                     console.log('res', response)
-                    const orderId = response[0].orderId
-                    const clientOrderId = response[0].clientOrderId
+                    const orderId = response.orderId
+                    const clientOrderId = response.clientOrderId
                     infos.orderId = orderId
                     infos.clientOrderId = clientOrderId
                     infos.symbol = trade.s
                     const DeleteOrder = await api.CancelOrder(infos, acc.apiKey, acc.apiSecret, acc.Name)
                     console.log('DELETE_ORDER: ', DeleteOrder)
                     return console.log(`Ordem cancelada na conta ${acc.Name}`)
-                }
-                if (trade.o === 'MARKET') {
+                } else {
                     const data = await copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name);
                     const promises = await api.newOrder(data, acc.apiKey, acc.apiSecret, acc.Name);
                     return promises;
-
                 }
 
             });
