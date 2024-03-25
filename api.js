@@ -73,12 +73,19 @@ async function connectAccount() {
     }
 }
 async function CancelOrder(data, apiKey, apiSecret, name) {
+    console.log('DATAAAAAA', data)
+    let infos = {
+        symbol: data.symbol,
+        orderId: data.orderId,
+        timestamp: Date.now(),
+        recvWindow: 60000,
+    }
     console.log('CANCEL_ORDER: ', data)
-    data.timestamp = Date.now();
-    data.recvWindow = 60000;
-    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(data)}`).digest('hex');
+    console.log('apiKey: ', apiKey)
+
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
     // console.log('signature', signature)
-    const qs = `?${new URLSearchParams({ ...data, signature })}`
+    const qs = `?${new URLSearchParams({ ...infos, signature })}`
     try {
         const result = await axios({
             method: 'DELETE',
@@ -87,7 +94,7 @@ async function CancelOrder(data, apiKey, apiSecret, name) {
         })
         // console.log('newOrder result', result)
         console.log(`SUCESSO: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity}`)
-        return result.data
+        return result
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
         console.log(`| FALHOU: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity} |`)
@@ -97,12 +104,15 @@ async function CancelOrder(data, apiKey, apiSecret, name) {
     }
 }
 async function GetOrder(data, apiKey, apiSecret, name) {
+    let infos = { symbol: data.s }
     console.log('CANCEL_ORDER: ', data)
-    data.timestamp = Date.now();
-    data.recvWindow = 60000;
-    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(data)}`).digest('hex');
+    console.log('apiKey: ', apiKey)
+    infos.timestamp = Date.now();
+    infos.recvWindow = 60000;
+    console.log(infos)
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
     // console.log('signature', signature)
-    const qs = `?${new URLSearchParams({ ...data, signature })}`
+    const qs = `?${new URLSearchParams({ ...infos, signature })}`
     try {
         const result = await axios({
             method: 'GET',

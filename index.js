@@ -132,11 +132,13 @@ async function start() {
             PorcentagemMaster = await tradePorcentageMaster();
             const pr = accounts.map(async (acc) => {
                 const data = await copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name);
-                if (trade.f === 'GTC') {
+                console.log("trade", trade)
+                if (trade.x === 'CANCELED') {
                     const infos = {}
-                    const response = await api.GetOrder(trade.s)
-                    const orderId = response.orderId
-                    const clientOrderId = response.clientOrderId
+                    const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name)
+                    console.log('res', response)
+                    const orderId = response[0].orderId
+                    const clientOrderId = response[0].clientOrderId
                     infos.orderId = orderId
                     infos.clientOrderId = clientOrderId
                     infos.symbol = trade.s
