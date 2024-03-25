@@ -104,11 +104,13 @@ async function CancelOrder(data, apiKey, apiSecret, name) {
     }
 }
 async function GetOrder(data, apiKey, apiSecret, name) {
-    let infos = { symbol: data.s }
+    let infos = {
+        symbol: data.s,
+        timestamp: Date.now(),
+        recvWindow: 60000
+    }
     console.log('CANCEL_ORDER: ', data)
     console.log('apiKey: ', apiKey)
-    infos.timestamp = Date.now();
-    infos.recvWindow = 60000;
     console.log(infos)
     const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
     // console.log('signature', signature)
