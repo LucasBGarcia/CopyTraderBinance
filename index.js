@@ -131,9 +131,9 @@ async function start() {
             oldOrders[trade.i] = true;
             PorcentagemMaster = await tradePorcentageMaster();
             const pr = accounts.map(async (acc) => {
-                const data = await copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name);
                 console.log("trade", trade)
-                if (trade.x === 'CANCELED') {
+                if (trade.o === 'LIMIT' && trade.x === 'CANCELED') {
+
                     const infos = {}
                     const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name)
                     console.log('res', response)
@@ -144,12 +144,15 @@ async function start() {
                     infos.symbol = trade.s
                     const DeleteOrder = await api.CancelOrder(infos, acc.apiKey, acc.apiSecret, acc.Name)
                     console.log('DELETE_ORDER: ', DeleteOrder)
-                } else {
+                    return console.log(`Ordem cancelada na conta ${acc.Name}`)
+                }
+                if (trade.o === 'MARKET') {
+                    const data = await copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name);
                     const promises = await api.newOrder(data, acc.apiKey, acc.apiSecret, acc.Name);
                     return promises;
+
                 }
-                console.log('trade', trade)
-                console.log('data', data)
+
             });
             if (pr) {
                 const results = await Promise.allSettled(pr);
