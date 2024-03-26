@@ -72,17 +72,13 @@ async function connectAccount() {
         console.error(err.response ? err.response : err.message)
     }
 }
-async function CancelOrder(data, apiKey, apiSecret, name) {
-    console.log('DATAAAAAA', data)
+async function CancelOrder(data, apiKey, apiSecret, name, quantidade, type) {
     let infos = {
         symbol: data.symbol,
         orderId: data.orderId,
         timestamp: Date.now(),
         recvWindow: 60000,
     }
-    console.log('CANCEL_ORDER: ', data)
-    console.log('apiKey: ', apiKey)
-
     const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
     // console.log('signature', signature)
     const qs = `?${new URLSearchParams({ ...infos, signature })}`
@@ -93,11 +89,11 @@ async function CancelOrder(data, apiKey, apiSecret, name) {
             headers: { 'X-MBX-APIKEY': apiKey }
         })
         // console.log('newOrder result', result)
-        console.log(`SUCESSO: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity}`)
+        console.log(`SUCESSO: Conta ${name} | Ordem deletada: Conta ${name} | Ordem: ${type} ${data.symbol} Preço: ${quantidade} `)
         return result
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
-        console.log(`| FALHOU: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity} |`)
+        console.log(`| FALHOU: Conta ${name} | Ordem: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
         console.log('| erro', err.response.data, ' |')
         console.log('*------------------------------------------------**************------------------------------------------------*')
         // console.error(err.respose ? err.respose : err.message)
@@ -109,9 +105,6 @@ async function GetOrder(data, apiKey, apiSecret, name) {
         timestamp: Date.now(),
         recvWindow: 60000
     }
-    console.log('CANCEL_ORDER: ', data)
-    console.log('apiKey: ', apiKey)
-    console.log(infos)
     const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
     // console.log('signature', signature)
     const qs = `?${new URLSearchParams({ ...infos, signature })}`
@@ -122,10 +115,7 @@ async function GetOrder(data, apiKey, apiSecret, name) {
             headers: { 'X-MBX-APIKEY': apiKey }
         })
         // console.log('newOrder result', result)
-        console.log(`SUCESSO: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q}`)
-        console.log(data.p)
         const filter = result.data.filter((ordem) => ordem.price === data.p && ordem.side === data.S)
-        console.log("filter", filter)
         return filter[0]
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
@@ -141,9 +131,6 @@ async function GetAllOrder(data, apiKey, apiSecret, name) {
         timestamp: Date.now(),
         recvWindow: 60000
     }
-    console.log('CANCEL_ORDER: ', data)
-    console.log('apiKey: ', apiKey)
-    console.log(infos)
     const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
     // console.log('signature', signature)
     const qs = `?${new URLSearchParams({ ...infos, signature })}`
@@ -156,7 +143,6 @@ async function GetAllOrder(data, apiKey, apiSecret, name) {
         // console.log('newOrder result', result)
         console.log(`SUCESSO: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity}`)
         //VERIFICAR SE ESTÁ CORRETO, FAZENDO SEM TESTE
-        console.log(result.data)
         return result.data
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')

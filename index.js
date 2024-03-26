@@ -121,8 +121,8 @@ const oldOrders = {}
 async function start() {
     console.clear();
     ValorTotalMaster = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
-    const bruno = await api.InfoAccount(process.env.TRADER1_API_SECRET, process.env.TRADER1_API_KEY);
-    console.log(bruno);
+    const lucas = await api.InfoAccountBalance(process.env.TRADER1_API_SECRET, process.env.TRADER1_API_KEY);
+    console.log(lucas);
     const listenKey = await loadAccounts();
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey}`);
     ws.onmessage = async (event) => {
@@ -131,18 +131,17 @@ async function start() {
             oldOrders[trade.i] = true;
             PorcentagemMaster = await tradePorcentageMaster();
             const pr = accounts.map(async (acc) => {
-                console.log("trade", trade)
                 if (trade.o === 'LIMIT' && trade.x === 'CANCELED') {
-                    const infos = {}
+                    const infos = { symbol: trade.s }
                     const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name)
-                    console.log('res', response)
+                    if (!response) {
+                        return (`Ordem não encontrada na conta ${acc.Name}`)
+                    }
                     const orderId = response.orderId
                     const clientOrderId = response.clientOrderId
                     infos.orderId = orderId
                     infos.clientOrderId = clientOrderId
-                    infos.symbol = trade.s
-                    const DeleteOrder = await api.CancelOrder(infos, acc.apiKey, acc.apiSecret, acc.Name)
-                    console.log('DELETE_ORDER: ', DeleteOrder)
+                    await api.CancelOrder(infos, acc.apiKey, acc.apiSecret, acc.Name, trade.p, trade.S)
                     return console.log(`Ordem cancelada na conta ${acc.Name}`)
                 } else {
                     const data = await copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name);
@@ -159,9 +158,8 @@ async function start() {
             }
             process.exit(0)
         }
-
     };
-    console.log('waiting')
+    console.log('waiting trades...')
 
     setInterval(() => {
         api.connectAccount();
