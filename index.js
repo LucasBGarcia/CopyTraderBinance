@@ -131,54 +131,60 @@ async function start() {
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey}`);
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
+
         if (trade.e === 'executionReport' && trade.o === 'LIMIT' && trade.x === 'CANCELED') {
             oldOrders[trade.i] = true;
-            const pr = accounts.map(async (acc) => {
-                const infos = { symbol: trade.s }
-                const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name)
-                if (!response) {
-                    return (`Ordem não encontrada na conta ${acc.Name}`)
-                }
-                const orderId = response.orderId
-                const clientOrderId = response.clientOrderId
-                infos.orderId = orderId
-                infos.clientOrderId = clientOrderId
-                await api.CancelOrder(infos, acc.apiKey, acc.apiSecret, acc.Name, trade.p, trade.S)
-                return console.log(`Ordem cancelada na conta ${acc.Name}`)
-            });
-            if (pr) {
-                const results = await Promise.allSettled(pr);
-                console.log('resultado', results);
-                console.log('waiting trades...')
-            } else {
-                console.log('erro no if pr');
-            }
+            await handleCanceledOrders(trade);
         }
 
         if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
             oldOrders[trade.i] = true;
             PorcentagemMaster = await tradePorcentageMaster();
-            const pr = accounts.map(async (acc) => {
-
-                const data = await copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name);
-                const promises = await api.newOrder(data, acc.apiKey, acc.apiSecret, acc.Name);
-                return promises;
-
-            });
-            if (pr) {
-                const results = await Promise.allSettled(pr);
-                console.log('resultado', results);
-                console.log('waiting trades...')
-            } else {
-                console.log('erro no if pr');
-            }
+            await handleNewOrders(trade);
         }
     };
-    console.log('waiting trades...')
-    setInterval(() => {
-        api.connectAccount();
-    }, 59 * 60 * 1000);
 
+    console.log('waiting trades...');
+    setInterval(api.connectAccount, 59 * 60 * 1000);
+}
+
+async function handleCanceledOrders(trade) {
+    const pr = accounts.map(async (acc) => {
+        const infos = { symbol: trade.s };
+        const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name);
+
+        if (!response) {
+            return (`Ordem não encontrada na conta ${acc.Name}`);
+        }
+
+        const orderId = response.orderId;
+        const clientOrderId = response.clientOrderId;
+        infos.orderId = orderId;
+        infos.clientOrderId = clientOrderId;
+        await api.CancelOrder(infos, acc.apiKey, acc.apiSecret, acc.Name, trade.p, trade.S);
+        console.log(`Ordem cancelada na conta ${acc.Name}`);
+    });
+
+    await handlePromise(pr);
+}
+
+async function handleNewOrders(trade) {
+    const pr = accounts.map(async (acc) => {
+        const data = await copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name);
+        return api.newOrder(data, acc.apiKey, acc.apiSecret, acc.Name);
+    });
+
+    await handlePromise(pr);
+}
+
+async function handlePromise(pr) {
+    try {
+        const results = await Promise.allSettled(pr);
+        console.log('resultado', results);
+        console.log('waiting trades...');
+    } catch (error) {
+        console.log('erro:', error);
+    }
 }
 
 start()
