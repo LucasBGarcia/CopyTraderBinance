@@ -18,6 +18,11 @@ async function loadAccounts() {
         i++
     }
     console.log(`${i - 1} copy accounts loaded`)
+
+    await Promise.all(accounts.map(async (account) => {
+        let balance = await api.InfoAccountBalance(account.apiSecret, account.apiKey);
+        console.log(`${account.Name} USDT ${balance}`);
+    }));
     return listenKey
 }
 
@@ -121,12 +126,14 @@ const oldOrders = {}
 async function start() {
     console.clear();
     ValorTotalMaster = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
-    const lucas = await api.InfoAccountBalance(process.env.TRADER1_API_SECRET, process.env.TRADER1_API_KEY);
-    console.log(lucas);
+
     const listenKey = await loadAccounts();
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey}`);
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
+        console.log('ta caindo no ws.onmessesage', trade)
+        console.log('oldOrders', oldOrders)
+        console.log('oldOrders[trade.i]', oldOrders[trade.i])
         if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
             oldOrders[trade.i] = true;
             PorcentagemMaster = await tradePorcentageMaster();
@@ -153,14 +160,13 @@ async function start() {
             if (pr) {
                 const results = await Promise.allSettled(pr);
                 console.log('resultado', results);
+                console.log('waiting trades...')
             } else {
                 console.log('erro no if pr');
             }
-            process.exit(0)
         }
     };
     console.log('waiting trades...')
-
     setInterval(() => {
         api.connectAccount();
     }, 59 * 60 * 1000);
