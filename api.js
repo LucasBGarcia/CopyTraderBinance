@@ -61,6 +61,9 @@ function generateSignature(queryString, apiSecret) {
 
 async function connectAccount() {
     const apiKey = process.env.TRADER0_API_KEY
+
+    if (!apiKey || !apiSecret)
+        throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
     try {
         const result = await axios({
             method: 'POST',
@@ -72,6 +75,21 @@ async function connectAccount() {
         console.error(err.response ? err.response : err.message)
     }
 }
+
+async function connectAccountFuture() {
+    const apiKey = process.env.TRADER0_API_KEY;
+    try {
+        const result = await axios({
+            method: "POST",
+            url: `${apiUrl}/v1/listenKey`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        });
+        return result.data;
+    } catch (err) {
+        console.error(err.response ? err.response : err);
+    }
+}
+
 async function CancelOrder(data, apiKey, apiSecret, name, quantidade, type) {
     let infos = {
         symbol: data.symbol,
@@ -176,6 +194,31 @@ async function newOrder(data, apiKey, apiSecret, name) {
         // console.error(err.respose ? err.respose : err.message)
     }
 }
+async function newOrderFuture(data, apiKey, apiSecret) {
+    if (!apiKey || !apiSecret)
+        throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
+
+    data.timestamp = Date.now();
+    data.recvWindow = 60000;//máximo permitido, default 5000
+
+    const signature = crypto
+        .createHmac('sha256', apiSecret)
+        .update(`${new URLSearchParams(data)}`)
+        .digest('hex');
+
+    const qs = `?${new URLSearchParams({ ...data, signature })}`;
+
+    try {
+        const result = await axios({
+            method: "POST",
+            url: `${apiUrl}/v1/order${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        });
+        return result.data;
+    } catch (err) {
+        console.error(err.response ? err.response : err);
+    }
+}
 
 module.exports = {
     connectAccount,
@@ -184,5 +227,7 @@ module.exports = {
     InfoAccountBalance,
     CancelOrder,
     GetOrder,
-    GetAllOrder
+    GetAllOrder,
+    newOrderFuture,
+    connectAccountFuture
 }
