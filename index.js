@@ -21,7 +21,7 @@ async function loadAccounts() {
 
     await Promise.all(accounts.map(async (account) => {
         let balance = await api.InfoAccountBalance(account.apiSecret, account.apiKey);
-        console.log(`${account.Name} USDT ${balance}`);
+        console.log(`${account.Name} USDT SPOT ${balance.valorSpot} | USDT FUTURES ${balance.valorFutures}`);
     }));
     return listenKey
 }
@@ -62,7 +62,7 @@ async function PegaMoedar(apiSecret, moeda, apiKey) {
 }
 function buscaValor(symbol) {
     return new Promise((resolve, reject) => {
-        const wsPrice = new WebSocket(`${process.env.STREAM_URL}/${symbol.toLowerCase()}@ticker`);
+        const wsPrice = new WebSocket(`${process.env.BINANCE_WS_URL}/${symbol.toLowerCase()}@ticker`);
         wsPrice.onmessage = (event) => {
             const obj = JSON.parse(event.data);
             const currentPrice = parseFloat(obj.a);
@@ -128,7 +128,15 @@ async function start() {
     ValorTotalMaster = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
 
     const listenKey = await loadAccounts();
-    const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey}`);
+    console.log('listenKey', listenKey);
+    const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
+    const wsFuture = new WebSocket(`${process.env.BINANCE_API_URL_FUTURES}/${listenKey.listenKeyFutures.listenKey}`);
+
+    wsFuture.onmessage = async (event) => {
+        const trade = JSON.parse(event.data);
+        console.log(trade)
+    }
+
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
 

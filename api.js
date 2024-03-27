@@ -2,6 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 
 const apiUrl = process.env.BINANCE_API_URL
+const apiUrlFutures = process.env.BINANCE_API_URL_FUTURES
 
 const apiKey = process.env.TRADER0_API_KEY;
 const apiSecret = process.env.TRADER0_API_SECRET;
@@ -27,9 +28,52 @@ async function InfoAccountBalance(apiSecret, apiKey) {
                 'X-MBX-APIKEY': apiKey
             },
         });
+
+        const resultFutures = await axios({
+            method: 'GET',
+            url: `${apiUrlFutures}/v2/balance?${queryString}&signature=${signature}`,
+            headers: {
+                'X-MBX-APIKEY': apiKey
+            },
+        });
+
         const filterBalance = result.data.balances.filter(balance => balance.asset === 'USDT')
-        return filterBalance[0].free;
+        const filterBalanceFutures = resultFutures.data.filter(balance => balance.asset === 'USDT')
+        const res = {
+            valorSpot: filterBalance[0].free,
+            valorFutures: filterBalanceFutures[0].balance
+        }
+
+        return res
     } catch (err) {
+        console.error(err.response ? err.response.data : err.message);
+    }
+}
+async function InfoAccountBalanceFuture(apiSecret, apiKey) {
+    try {
+        if (!apiSecret) {
+            throw new Error('API secret is not defined!');
+        }
+        const timeRes = await fetch(`https://api.binance.com/api/v3/time`);
+        const timeData = await timeRes.json();
+        const timestamp = timeData.serverTime;
+
+        const queryString = `timestamp=${timestamp}`;
+
+        const signature = generateSignature(queryString, apiSecret);
+
+        const resultFutures = await axios({
+            method: 'GET',
+            url: `${apiUrlFutures}/v2/balance?${queryString}&signature=${signature}`,
+            headers: {
+                'X-MBX-APIKEY': apiKey
+            },
+        });
+        const filterBalance = resultFutures.data.filter(balance => balance.asset === 'USDT')
+        // console.log('resultFutures', resultFutures)
+        return filterBalance[0].balance
+    } catch (err) {
+        console.log('error', err)
         console.error(err.response ? err.response.data : err.message);
     }
 }
@@ -70,7 +114,17 @@ async function connectAccount() {
             url: `${apiUrl}/v3/userDataStream`,
             headers: { 'X-MBX-APIKEY': apiKey },
         })
-        return result.data
+        const resultFutures = await axios({
+            method: 'POST',
+            url: `${apiUrlFutures}/v1/listenKey`,
+            headers: { 'X-MBX-APIKEY': apiKey },
+        })
+        const res = {
+            listenKeySpot: result.data,
+            listenKeyFutures: resultFutures.data
+        }
+        console.log(res)
+        return res
     } catch (err) {
         console.error(err.response ? err.response : err.message)
     }
@@ -111,7 +165,7 @@ async function CancelOrder(data, apiKey, apiSecret, name, quantidade, type) {
         return result
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
-        console.log(`| FALHOU: Conta ${name} | Ordem: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
+        console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
         console.log('| erro', err.response.data, ' |')
         console.log('*------------------------------------------------**************------------------------------------------------*')
         // console.error(err.respose ? err.respose : err.message)
@@ -229,5 +283,6 @@ module.exports = {
     GetOrder,
     GetAllOrder,
     newOrderFuture,
-    connectAccountFuture
+    connectAccountFuture,
+    InfoAccountBalanceFuture
 }
