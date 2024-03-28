@@ -41,7 +41,7 @@ async function InfoAccountBalance(apiSecret, apiKey) {
         const filterBalanceFutures = resultFutures.data.filter(balance => balance.asset === 'USDT')
         const res = {
             valorSpot: filterBalance[0].free,
-            valorFutures: filterBalanceFutures[0].balance
+            valorFutures: filterBalanceFutures[0].availableBalance
         }
 
         return res
@@ -93,7 +93,19 @@ async function InfoAccount(apiSecret, apiKey) {
                 'X-MBX-APIKEY': apiKey,
             },
         });
-        return result.data.balances;
+        const resultFutures = await axios({
+            method: 'GET',
+            url: `${apiUrlFutures}/v2/balance?${queryString}&signature=${signature}`,
+            headers: {
+                'X-MBX-APIKEY': apiKey
+            },
+        });
+        console.log(resultFutures.data)
+        const res = {
+            spot: result.data.balances,
+            futures: resultFutures.data
+        }
+        return res
     } catch (err) {
         console.error(err.response ? err.response.data : err.message);
     }
@@ -123,7 +135,6 @@ async function connectAccount() {
             listenKeySpot: result.data,
             listenKeyFutures: resultFutures.data
         }
-        console.log(res)
         return res
     } catch (err) {
         console.error(err.response ? err.response : err.message)
@@ -248,13 +259,13 @@ async function newOrder(data, apiKey, apiSecret, name) {
         // console.error(err.respose ? err.respose : err.message)
     }
 }
-async function newOrderFuture(data, apiKey, apiSecret) {
+async function newOrderFutures(data, apiKey, apiSecret) {
     if (!apiKey || !apiSecret)
         throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
 
     data.timestamp = Date.now();
     data.recvWindow = 60000;//máximo permitido, default 5000
-
+    console.log('data new order futures', data)
     const signature = crypto
         .createHmac('sha256', apiSecret)
         .update(`${new URLSearchParams(data)}`)
@@ -265,12 +276,12 @@ async function newOrderFuture(data, apiKey, apiSecret) {
     try {
         const result = await axios({
             method: "POST",
-            url: `${apiUrl}/v1/order${qs}`,
+            url: `${apiUrlFutures}/v1/order${qs}`,
             headers: { 'X-MBX-APIKEY': apiKey }
         });
         return result.data;
     } catch (err) {
-        console.error(err.response ? err.response : err);
+        console.error(err.response ? err.response : err.data);
     }
 }
 
@@ -282,7 +293,7 @@ module.exports = {
     CancelOrder,
     GetOrder,
     GetAllOrder,
-    newOrderFuture,
+    newOrderFutures,
     connectAccountFuture,
     InfoAccountBalanceFuture
 }

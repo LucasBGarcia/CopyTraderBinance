@@ -3,11 +3,12 @@ var prompt = require('prompt-sync')()
 const WebSocket = require('ws')
 const api = require("./api")
 const accounts = []
-let ValorTotalMaster;
+let ValorTotalMasterSpot;
+let ValorTotalMasterFuturos;
 let PorcentagemMaster
 
 async function loadAccounts() {
-    const { listenKey } = await api.connectAccount()
+    const listenKey = await api.connectAccount()
     let i = 1;
     while (process.env[`TRADER${i}_API_KEY`]) {
         accounts.push({
@@ -28,13 +29,20 @@ async function loadAccounts() {
 
 async function tradePorcentageMaster() {
     const ValueAfterTrade = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY)
-    const valorgasto = ValorTotalMaster - ValueAfterTrade
-    const porcentagem = (valorgasto / ValorTotalMaster) * 100;
+    const valorgasto = ValorTotalMasterSpot - ValueAfterTrade.valorSpot
+    const porcentagem = (valorgasto / ValorTotalMasterSpot) * 100;
+    return porcentagem.toFixed(2);
+}
+async function tradePorcentageMasterFuturos() {
+    const ValueAfterTrade = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY)
+    const valorgasto = ValorTotalMasterFuturos - ValueAfterTrade.valorFutures
+    const porcentagem = (valorgasto / ValorTotalMasterFuturos) * 100;
     return porcentagem.toFixed(2);
 }
 
 function encontrarPrimeiroNaoZero(numero) {
-    let valorSplit = numero.split('.')
+    const string = numero.toString();
+    let valorSplit = string.split('.')
     let valor = valorSplit[1]
     let contador = 0
     for (let i = valor.length - 1; i >= 0; i--) {
@@ -47,7 +55,8 @@ function encontrarPrimeiroNaoZero(numero) {
 }
 
 function calcularValorPorPorcentagem(valorCarteira, porcentagem, tradeq, valorAtual, apiName) {
-    const valor = encontrarPrimeiroNaoZero(tradeq)
+    const quantidadeNumber = Number(tradeq)
+    const valor = encontrarPrimeiroNaoZero(quantidadeNumber.toFixed(8))
     const valorReferentePorcentagem = (porcentagem / 100) * valorCarteira;
     const result = valorReferentePorcentagem / valorAtual
     console.log(`${apiName} - Valor gasto: USDT ${valorReferentePorcentagem}`)
@@ -57,7 +66,7 @@ function calcularValorPorPorcentagem(valorCarteira, porcentagem, tradeq, valorAt
 async function PegaMoedar(apiSecret, moeda, apiKey) {
     const ValorCarteiraCliente = await api.InfoAccount(apiSecret, apiKey);
     const moedaSplitCliente = moeda.split('U')
-    const moedaCliente = ValorCarteiraCliente.filter(pares => pares.asset === moedaSplitCliente[0])
+    const moedaCliente = ValorCarteiraCliente.spot.filter(pares => pares.asset === moedaSplitCliente[0])
     return (moedaCliente)
 }
 function buscaValor(symbol) {
@@ -79,7 +88,7 @@ async function copyTrade(trade, apiSecret, apiKey, apiName) {
     const valorAtual = await buscaValor(trade.s);
     if (trade.S == 'BUY') {
         const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey)
-        CompraCliente = calcularValorPorPorcentagem(ValorCarteiraCliente, PorcentagemMaster, trade.q, valorAtual, apiName)
+        CompraCliente = calcularValorPorPorcentagem(ValorCarteiraCliente.valorSpot, PorcentagemMaster, trade.q, valorAtual, apiName)
     }
     if (trade.S == 'SELL') {
         const posicZero = encontrarPrimeiroNaoZero(trade.q)
@@ -120,21 +129,81 @@ async function copyTrade(trade, apiSecret, apiKey, apiName) {
     // console.log(`Conta - ${apiName}: QTD entrada/saida -${trade.s} ${CompraCliente ? CompraCliente : VendaCliente}`)
     return data;
 }
+async function copyTradeFutures(trade, apiSecret, apiKey, apiName) {
+    let CompraCliente
+    let VendaCliente
+    const valorAtual = await buscaValor(trade.s);
+    if (trade.S == 'BUY') {
+        const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey)
+        CompraCliente = calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, valorAtual, apiName)
+    }
+    if (trade.S == 'SELL') {
+        const posicZero = encontrarPrimeiroNaoZero(trade.q)
+        const ValorCarteiraCliente = await PegaMoedar(apiSecret, trade.s, apiKey)
+        const valor = Number(ValorCarteiraCliente[0].free)
+        const fator = Math.pow(10, posicZero)
+        const arredonda = Math.floor(valor * fator) / fator
+        VendaCliente = arredonda.toFixed(posicZero)
+
+    }
+    const data = {
+        symbol: trade.s,
+        side: trade.S,
+        type: trade.o
+    }
+    if (trade.q && parseFloat(trade.q)) {
+        if (CompraCliente) {
+            data.quantity = trade.q
+            // data.quantity = Math.abs(CompraCliente).toString()
+        } else if (VendaCliente) {
+            data.quantity = trade.q
+            // data.quantity = Math.abs(VendaCliente).toString()
+        } else {
+            data.quantity = trade.q
+        }
+    }
+    if (trade.p && parseFloat(trade.p))
+        data.price = trade.p
+
+    if (trade.f && trade.f !== "GTC")
+        data.timeInForce = trade.f;
+
+    if (trade.sp && parseFloat(trade.sp))
+        data.stopPrice = trade.sp;
+
+    if (trade.ps)
+        data.positionSide = trade.ps;
+
+    if (trade.AP && parseFloat(trade.AP))
+        data.activationPrice = trade.AP;
+
+    if (trade.cr && parseFloat(trade.cr))
+        data.callbackRate = trade.cr;
+
+    return data;
+
+}
 
 
 const oldOrders = {}
 async function start() {
     console.clear();
-    ValorTotalMaster = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
+    const valoresIniciais = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
+    ValorTotalMasterSpot = valoresIniciais.valorSpot
+    ValorTotalMasterFuturos = valoresIniciais.valorFutures
 
     const listenKey = await loadAccounts();
-    console.log('listenKey', listenKey);
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
-    const wsFuture = new WebSocket(`${process.env.BINANCE_API_URL_FUTURES}/${listenKey.listenKeyFutures.listenKey}`);
+    const wsFuture = new WebSocket(`${process.env.BINANCE_WS_URL_FUTURE}/${listenKey.listenKeyFutures.listenKey}`);
 
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
         console.log(trade)
+        if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i]) {
+            oldOrders[trade.i] = true;
+            PorcentagemMaster = await tradePorcentageMasterFuturos();
+            await handleNewOrdersFutures(trade.o);
+        }
     }
 
     ws.onmessage = async (event) => {
@@ -184,12 +253,21 @@ async function handleNewOrders(trade) {
 
     await handlePromise(pr);
 }
+async function handleNewOrdersFutures(trade) {
+    const pr = accounts.map(async (acc) => {
+        const data = await copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name);
+        return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
+    });
+
+    await handlePromise(pr);
+}
 
 async function handlePromise(pr) {
     try {
         const results = await Promise.allSettled(pr);
         console.log('resultado', results);
         console.log('waiting trades...');
+        process.exit(0)
     } catch (error) {
         console.log('erro:', error);
     }
