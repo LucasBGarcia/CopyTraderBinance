@@ -6,6 +6,7 @@ const accounts = []
 let ValorTotalMasterSpot;
 let ValorTotalMasterFuturos;
 let PorcentagemMaster
+let AlavancagemMaster
 
 async function loadAccounts() {
     const listenKey = await api.connectAccount()
@@ -33,11 +34,15 @@ async function tradePorcentageMaster() {
     const porcentagem = (valorgasto / ValorTotalMasterSpot) * 100;
     return porcentagem.toFixed(2);
 }
-async function tradePorcentageMasterFuturos() {
-    const ValueAfterTrade = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY)
-    const valorgasto = ValorTotalMasterFuturos - ValueAfterTrade.valorFutures
+async function tradePorcentageMasterFuturos(trade) {
+    const valorgasto = trade.wb - trade.cw
+    // const ValueAfterTrade = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY)
+    // const valorgasto = ValorTotalMasterFuturos - ValueAfterTrade.valorFutures
     const porcentagem = (valorgasto / ValorTotalMasterFuturos) * 100;
-    return porcentagem.toFixed(2);
+    console.log('trade porcentagem ', trade)
+    console.log('trade porcentagem retorno', porcentagem.toFixed(2))
+    const porcentagemFinal = porcentagem.toFixed(2) * AlavancagemMaster
+    return porcentagemFinal.toFixed(2);
 }
 
 function encontrarPrimeiroNaoZero(numero) {
@@ -55,6 +60,9 @@ function encontrarPrimeiroNaoZero(numero) {
 }
 
 function calcularValorPorPorcentagem(valorCarteira, porcentagem, tradeq, valorAtual, apiName) {
+    console.log('porcentagem recebida', porcentagem)
+    console.log('Valor da carteira', valorCarteira)
+    console.log('valor atual', valorAtual)
     const quantidadeNumber = Number(tradeq)
     const valor = encontrarPrimeiroNaoZero(quantidadeNumber.toFixed(8))
     const valorReferentePorcentagem = (porcentagem / 100) * valorCarteira;
@@ -133,32 +141,32 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName) {
     let CompraCliente
     let VendaCliente
     const valorAtual = await buscaValor(trade.s);
-    if (trade.S == 'BUY') {
-        const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey)
-        CompraCliente = calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, valorAtual, apiName)
-    }
-    if (trade.S == 'SELL') {
-        const posicZero = encontrarPrimeiroNaoZero(trade.q)
-        const ValorCarteiraCliente = await PegaMoedar(apiSecret, trade.s, apiKey)
-        const valor = Number(ValorCarteiraCliente[0].free)
-        const fator = Math.pow(10, posicZero)
-        const arredonda = Math.floor(valor * fator) / fator
-        VendaCliente = arredonda.toFixed(posicZero)
+    //Multiplicar quantidade por alavancagem
 
-    }
+    // if (trade.S == 'BUY') {
+    const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey)
+    CompraCliente = calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, valorAtual, apiName)
+    // }
+    // if (trade.S == 'SELL') {
+    //     const posicZero = encontrarPrimeiroNaoZero(trade.q)
+    //     const ValorCarteiraCliente = await PegaMoedar(apiSecret, trade.s, apiKey)
+    //     const valor = Number(ValorCarteiraCliente[0].free)
+    //     const fator = Math.pow(10, posicZero)
+    //     const arredonda = Math.floor(valor * fator) / fator
+    //     VendaCliente = arredonda.toFixed(posicZero)
+    // }
     const data = {
         symbol: trade.s,
         side: trade.S,
         type: trade.o
     }
     if (trade.q && parseFloat(trade.q)) {
-        if (CompraCliente) {
-            data.quantity = trade.q
-            // data.quantity = Math.abs(CompraCliente).toString()
-        } else if (VendaCliente) {
-            data.quantity = trade.q
-            // data.quantity = Math.abs(VendaCliente).toString()
+        console.log(PorcentagemMaster)
+        if (PorcentagemMaster > 0) {
+            console.log('compra Cliente', CompraCliente)
+            data.quantity = Math.abs(CompraCliente).toString()
         } else {
+            await handleCanceledOrdersFutures(trade)
             data.quantity = trade.q
         }
     }
@@ -179,7 +187,7 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName) {
 
     if (trade.cr && parseFloat(trade.cr))
         data.callbackRate = trade.cr;
-
+    console.log("data", data)
     return data;
 
 }
@@ -188,6 +196,7 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName) {
 const oldOrders = {}
 async function start() {
     console.clear();
+
     const valoresIniciais = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
     ValorTotalMasterSpot = valoresIniciais.valorSpot
     ValorTotalMasterFuturos = valoresIniciais.valorFutures
@@ -196,12 +205,23 @@ async function start() {
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
     const wsFuture = new WebSocket(`${process.env.BINANCE_WS_URL_FUTURE}/${listenKey.listenKeyFutures.listenKey}`);
 
+
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
-        console.log(trade)
-        if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i]) {
-            oldOrders[trade.i] = true;
-            PorcentagemMaster = await tradePorcentageMasterFuturos();
+
+        console.log("trade", trade)
+        if (trade.a && trade.a.m === 'MARGIN_TYPE_CHANGE') {
+            console.log(trade.a.P[0].mt)
+            await handleChangeMarginType(trade.a)
+        }
+        if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
+            await handleChangeLeverage(trade.ac)
+        }
+        if (trade.a && trade.a.B[0]) {
+            PorcentagemMaster = await tradePorcentageMasterFuturos(trade.a.B[0]);
+        }
+        if (trade.e === "ORDER_TRADE_UPDATE") {
+            // oldOrders[trade.i] = true;
             await handleNewOrdersFutures(trade.o);
         }
     }
@@ -221,9 +241,50 @@ async function start() {
         }
     };
 
+
+    const falseTrade = {
+        s: 'IOSTUSDT',
+        c: 'web_XUPFQD3qDq1yAGGI3Fia',
+        S: 'SELL',
+        o: 'MARKET',
+        f: 'GTC',
+        q: '556',
+        p: '0',
+        ap: '0.010794',
+        sp: '0',
+        x: 'TRADE',
+        X: 'FILLED',
+        i: 7028302073,
+        l: '556',
+        z: '556',
+        L: '0.010794',
+        n: '0.00300073',
+        N: 'USDT',
+        T: 1712149384113,
+        t: 219254694,
+        b: '0',
+        a: '0',
+        m: false,
+        R: true,
+        wt: 'CONTRACT_PRICE',
+        ot: 'MARKET',
+        ps: 'BOTH',
+        cp: false,
+        rp: '0.00555999',
+        pP: false,
+        si: 0,
+        ss: 0,
+        V: 'NONE',
+        pm: 'NONE',
+        gtd: 0
+    }
+    const pr = accounts.map(async (acc) => {
+        const response = await api.GetOrderFutures(falseTrade, acc.apiKey, acc.apiSecret, acc.Name);
+    })
     console.log('waiting trades...');
     setInterval(api.connectAccount, 59 * 60 * 1000);
 }
+
 
 async function handleCanceledOrders(trade) {
     const pr = accounts.map(async (acc) => {
@@ -244,6 +305,26 @@ async function handleCanceledOrders(trade) {
 
     await handlePromise(pr);
 }
+async function handleCanceledOrdersFutures(trade) {
+    const pr = accounts.map(async (acc) => {
+        const infos = { symbol: trade.s };
+        const response = await api.GetOrderFutures(trade, acc.apiKey, acc.apiSecret, acc.Name);
+
+        if (!response) {
+            return (`Ordem não encontrada na conta ${acc.Name}`);
+        }
+
+        console.log('response', response);
+        // const orderId = response.orderId;
+        // const clientOrderId = response.clientOrderId;
+        // infos.orderId = orderId;
+        // infos.clientOrderId = clientOrderId;
+        // await api.CancelOrder(infos, acc.apiKey, acc.apiSecret, acc.Name, trade.p, trade.S);
+        // console.log(`Ordem cancelada na conta ${acc.Name}`);
+    });
+
+    await handlePromise(pr);
+}
 
 async function handleNewOrders(trade) {
     const pr = accounts.map(async (acc) => {
@@ -256,7 +337,33 @@ async function handleNewOrders(trade) {
 async function handleNewOrdersFutures(trade) {
     const pr = accounts.map(async (acc) => {
         const data = await copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name);
-        return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
+        // return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
+    });
+
+    await handlePromise(pr);
+}
+
+async function handleChangeLeverage(trade) {
+    AlavancagemMaster = trade.l
+    const pr = accounts.map(async (acc) => {
+        const data = {
+            symbol: trade.s,
+            leverage: trade.l
+        }
+        return api.ChangeLeverage(data, acc.apiKey, acc.apiSecret, acc.Name);
+    });
+
+    await handlePromise(pr);
+}
+
+async function handleChangeMarginType(trade) {
+    const mt = trade.P[0].mt === 'cross' ? 'CROSSED' : 'ISOLATED'
+    const pr = accounts.map(async (acc) => {
+        const data = {
+            symbol: trade.P[0].s,
+            marginType: mt,
+        }
+        return api.ChangeMarginType(data, acc.apiKey, acc.apiSecret, acc.Name);
     });
 
     await handlePromise(pr);
@@ -267,7 +374,7 @@ async function handlePromise(pr) {
         const results = await Promise.allSettled(pr);
         console.log('resultado', results);
         console.log('waiting trades...');
-        process.exit(0)
+        // process.exit(0)
     } catch (error) {
         console.log('erro:', error);
     }

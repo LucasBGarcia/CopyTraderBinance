@@ -100,7 +100,7 @@ async function InfoAccount(apiSecret, apiKey) {
                 'X-MBX-APIKEY': apiKey
             },
         });
-        console.log(resultFutures.data)
+        // console.log(resultFutures.data)
         const res = {
             spot: result.data.balances,
             futures: resultFutures.data
@@ -182,6 +182,33 @@ async function CancelOrder(data, apiKey, apiSecret, name, quantidade, type) {
         // console.error(err.respose ? err.respose : err.message)
     }
 }
+async function CancelOrderFutures(data, apiKey, apiSecret, name, quantidade, type) {
+    let infos = {
+        symbol: data.symbol,
+        timestamp: Date.now(),
+        recvWindow: 60000,
+    }
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
+    // console.log('signature', signature)
+    const qs = `?${new URLSearchParams({ ...infos, signature })}`
+    try {
+        const result = await axios({
+            method: 'DELETE',
+            url: `${apiUrlFutures}/v1/order${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        })
+        console.log('cancelOrder Futures result', result)
+        console.log('cancelOrder Futures data', data)
+        console.log(`SUCESSO: Conta ${name} | Ordem deletada: Conta ${name} | Ordem: ${type} ${data.symbol} Preço: ${quantidade} `)
+        return result
+    } catch (err) {
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
+    }
+}
 async function GetOrder(data, apiKey, apiSecret, name) {
     let infos = {
         symbol: data.s,
@@ -199,6 +226,41 @@ async function GetOrder(data, apiKey, apiSecret, name) {
         })
         // console.log('newOrder result', result)
         const filter = result.data.filter((ordem) => ordem.price === data.p && ordem.side === data.S)
+        return filter[0]
+    } catch (err) {
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
+    }
+}
+
+async function GetOrderFutures(data, apiKey, apiSecret, name) {
+    let opostoDataS
+    let infos = {
+        symbol: data.s,
+        timestamp: Date.now(),
+        recvWindow: 60000
+    }
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
+    // console.log('signature', signature)
+    const qs = `?${new URLSearchParams({ ...infos, signature })}`
+    try {
+        const result = await axios({
+            method: 'GET',
+            url: `${apiUrlFutures}/v1/allOrders${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        })
+        if (data.S === 'SELL') {
+            opostoDataS = 'BUY'
+        } else {
+            opostoDataS = 'SELL'
+        }
+        console.log('GetOrderFutures result', result.data)
+        console.log('GetOrderFutures data', data)
+        const filter = result.data.filter((ordem) => ordem.positionSide === opostoDataS && ordem.symbol === data.s)
+        console.log('filter', filter)
         return filter[0]
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
@@ -259,6 +321,7 @@ async function newOrder(data, apiKey, apiSecret, name) {
         // console.error(err.respose ? err.respose : err.message)
     }
 }
+
 async function newOrderFutures(data, apiKey, apiSecret) {
     if (!apiKey || !apiSecret)
         throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
@@ -281,7 +344,59 @@ async function newOrderFutures(data, apiKey, apiSecret) {
         });
         return result.data;
     } catch (err) {
+        console.error(err.response.data);
+    }
+}
+
+async function ChangeLeverage(data, apiKey, apiSecret) {
+    if (!apiKey || !apiSecret)
+        throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
+
+    data.timestamp = Date.now();
+    data.recvWindow = 60000;//máximo permitido, default 5000
+    console.log('data CHANGE LEVERAGE', data)
+    const signature = crypto
+        .createHmac('sha256', apiSecret)
+        .update(`${new URLSearchParams(data)}`)
+        .digest('hex');
+
+    const qs = `?${new URLSearchParams({ ...data, signature })}`;
+
+    try {
+        const result = await axios({
+            method: "POST",
+            url: `${apiUrlFutures}/v1/leverage${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        });
+        return result.data;
+    } catch (err) {
         console.error(err.response ? err.response : err.data);
+    }
+}
+
+async function ChangeMarginType(data, apiKey, apiSecret) {
+    if (!apiKey || !apiSecret)
+        throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
+
+    data.timestamp = Date.now();
+    data.recvWindow = 60000;//máximo permitido, default 5000
+    console.log('data CHANGE LEVERAGE', data)
+    const signature = crypto
+        .createHmac('sha256', apiSecret)
+        .update(`${new URLSearchParams(data)}`)
+        .digest('hex');
+
+    const qs = `?${new URLSearchParams({ ...data, signature })}`;
+
+    try {
+        const result = await axios({
+            method: "POST",
+            url: `${apiUrlFutures}/v1/marginType${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        });
+        return result.data;
+    } catch (err) {
+        console.error(err.response.data);
     }
 }
 
@@ -295,5 +410,9 @@ module.exports = {
     GetAllOrder,
     newOrderFutures,
     connectAccountFuture,
-    InfoAccountBalanceFuture
+    InfoAccountBalanceFuture,
+    ChangeLeverage,
+    ChangeMarginType,
+    GetOrderFutures,
+    CancelOrderFutures
 }
