@@ -56,7 +56,7 @@ function calcularValorPorPorcentagem(valorCarteira, porcentagem, tradeq, valorAt
 
 async function PegaMoedar(apiSecret, moeda, apiKey) {
     const ValorCarteiraCliente = await api.InfoAccount(apiSecret, apiKey);
-    const moedaSplitCliente = moeda.split('U')
+    const moedaSplitCliente = moeda.split('USD')
     const moedaCliente = ValorCarteiraCliente.filter(pares => pares.asset === moedaSplitCliente[0])
     return (moedaCliente)
 }
@@ -84,7 +84,6 @@ async function copyTrade(trade, apiSecret, apiKey, apiName) {
     if (trade.S == 'SELL') {
         const posicZero = encontrarPrimeiroNaoZero(trade.q)
         const ValorCarteiraCliente = await PegaMoedar(apiSecret, trade.s, apiKey)
-        console.log(ValorCarteiraCliente)
         const valor = Number(ValorCarteiraCliente[0].free)
         const fator = Math.pow(10, posicZero)
         const arredonda = Math.floor(valor * fator) / fator
