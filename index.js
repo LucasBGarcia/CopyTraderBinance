@@ -84,6 +84,7 @@ async function copyTrade(trade, apiSecret, apiKey, apiName) {
     if (trade.S == 'SELL') {
         const posicZero = encontrarPrimeiroNaoZero(trade.q)
         const ValorCarteiraCliente = await PegaMoedar(apiSecret, trade.s, apiKey)
+        console.log(ValorCarteiraCliente)
         const valor = Number(ValorCarteiraCliente[0].free)
         const fator = Math.pow(10, posicZero)
         const arredonda = Math.floor(valor * fator) / fator
