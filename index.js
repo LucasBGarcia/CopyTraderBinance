@@ -137,24 +137,17 @@ async function copyTrade(trade, apiSecret, apiKey, apiName) {
     // console.log(`Conta - ${apiName}: QTD entrada/saida -${trade.s} ${CompraCliente ? CompraCliente : VendaCliente}`)
     return data;
 }
-async function copyTradeFutures(trade, apiSecret, apiKey, apiName) {
-    let CompraCliente
-    let VendaCliente
-    const valorAtual = await buscaValor(trade.s);
-    //Multiplicar quantidade por alavancagem
+async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder) {
+    let ValorEntrada
+    console.log('isNewOrder', isNewOrder)
+    // const valorAtual = await api.GetPriceFutures(trade.s);
+    if (isNewOrder.openPosition) {
+        const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey)
+        ValorEntrada = calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, trade.L, apiName)
+    }
+    // const newTrade = await handleCanceledOrdersFutures(trade)
+    console.log('compra Cliente', ValorEntrada)
 
-    // if (trade.S == 'BUY') {
-    const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey)
-    CompraCliente = calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, valorAtual, apiName)
-    // }
-    // if (trade.S == 'SELL') {
-    //     const posicZero = encontrarPrimeiroNaoZero(trade.q)
-    //     const ValorCarteiraCliente = await PegaMoedar(apiSecret, trade.s, apiKey)
-    //     const valor = Number(ValorCarteiraCliente[0].free)
-    //     const fator = Math.pow(10, posicZero)
-    //     const arredonda = Math.floor(valor * fator) / fator
-    //     VendaCliente = arredonda.toFixed(posicZero)
-    // }
     const data = {
         symbol: trade.s,
         side: trade.S,
@@ -162,12 +155,11 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName) {
     }
     if (trade.q && parseFloat(trade.q)) {
         console.log(PorcentagemMaster)
-        if (PorcentagemMaster > 0) {
-            console.log('compra Cliente', CompraCliente)
-            data.quantity = Math.abs(CompraCliente).toString()
+        if (ValorEntrada) {
+            console.log('compra Cliente', ValorEntrada)
+            data.quantity = Math.abs(ValorEntrada).toString()
         } else {
-            await handleCanceledOrdersFutures(trade)
-            data.quantity = trade.q
+            data.quantity = isNewOrder.positionAmt
         }
     }
     if (trade.p && parseFloat(trade.p))
@@ -192,6 +184,11 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName) {
 
 }
 
+async function calcPorcFuturos(trade) {
+    if (trade.a && trade.a.B[0]) {
+        PorcentagemMaster = await tradePorcentageMasterFuturos(trade.a.B[0]);
+    }
+}
 
 const oldOrders = {}
 async function start() {
@@ -205,6 +202,46 @@ async function start() {
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
     const wsFuture = new WebSocket(`${process.env.BINANCE_WS_URL_FUTURE}/${listenKey.listenKeyFutures.listenKey}`);
 
+    // const falseTrade = {
+    //     s: 'IOSTUSDT',
+    //     c: 'web_XUPFQD3qDq1yAGGI3Fia',
+    //     S: 'SELL',
+    //     o: 'MARKET',
+    //     f: 'GTC',
+    //     q: '556',
+    //     p: '0',
+    //     ap: '0.010794',
+    //     sp: '0',
+    //     x: 'TRADE',
+    //     X: 'FILLED',
+    //     i: 7028302073,
+    //     l: '556',
+    //     z: '556',
+    //     L: '0.010794',
+    //     n: '0.00300073',
+    //     N: 'USDT',
+    //     T: 1712149384113,
+    //     t: 219254694,
+    //     b: '0',
+    //     a: '0',
+    //     m: false,
+    //     R: true,
+    //     wt: 'CONTRACT_PRICE',
+    //     ot: 'MARKET',
+    //     ps: 'BOTH',
+    //     cp: false,
+    //     rp: '0.00555999',
+    //     pP: false,
+    //     si: 0,
+    //     ss: 0,
+    //     V: 'NONE',
+    //     pm: 'NONE',
+    //     gtd: 0
+    // }
+
+    // const pr = accounts.map(async (acc) => {
+    //     const response = await api.GetOrderFutures(falseTrade, acc.apiKey, acc.apiSecret, acc.Name);
+    // })
 
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
@@ -217,6 +254,7 @@ async function start() {
         if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
             await handleChangeLeverage(trade.ac)
         }
+        // await calcPorcFuturos(trade)
         if (trade.a && trade.a.B[0]) {
             PorcentagemMaster = await tradePorcentageMasterFuturos(trade.a.B[0]);
         }
@@ -242,45 +280,6 @@ async function start() {
     };
 
 
-    const falseTrade = {
-        s: 'IOSTUSDT',
-        c: 'web_XUPFQD3qDq1yAGGI3Fia',
-        S: 'SELL',
-        o: 'MARKET',
-        f: 'GTC',
-        q: '556',
-        p: '0',
-        ap: '0.010794',
-        sp: '0',
-        x: 'TRADE',
-        X: 'FILLED',
-        i: 7028302073,
-        l: '556',
-        z: '556',
-        L: '0.010794',
-        n: '0.00300073',
-        N: 'USDT',
-        T: 1712149384113,
-        t: 219254694,
-        b: '0',
-        a: '0',
-        m: false,
-        R: true,
-        wt: 'CONTRACT_PRICE',
-        ot: 'MARKET',
-        ps: 'BOTH',
-        cp: false,
-        rp: '0.00555999',
-        pP: false,
-        si: 0,
-        ss: 0,
-        V: 'NONE',
-        pm: 'NONE',
-        gtd: 0
-    }
-    const pr = accounts.map(async (acc) => {
-        const response = await api.GetOrderFutures(falseTrade, acc.apiKey, acc.apiSecret, acc.Name);
-    })
     console.log('waiting trades...');
     setInterval(api.connectAccount, 59 * 60 * 1000);
 }
@@ -336,8 +335,13 @@ async function handleNewOrders(trade) {
 }
 async function handleNewOrdersFutures(trade) {
     const pr = accounts.map(async (acc) => {
-        const data = await copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name);
-        // return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
+        const response = await api.GetOrderFutures(trade, acc.apiKey, acc.apiSecret, acc.Name);
+        console.log("response get order Futuros", response);
+        if (!response) {
+            return (`Ordem não encontrada na conta ${acc.Name}`);
+        }
+        const data = await copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response);
+        return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
     });
 
     await handlePromise(pr);

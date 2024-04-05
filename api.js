@@ -235,37 +235,68 @@ async function GetOrder(data, apiKey, apiSecret, name) {
         // console.error(err.respose ? err.respose : err.message)
     }
 }
+async function GetPriceFutures(symbol) {
+    try {
+        const qs = `?${new URLSearchParams({ symbol })}`
+
+        const result = await axios({
+            method: 'GET',
+            url: `${apiUrlFutures}/v1/premiumIndex${qs}`,
+        })
+        console.log(result.data)
+    } catch (err) {
+        console.log('err ao capturar valor atual', err)
+    }
+}
 
 async function GetOrderFutures(data, apiKey, apiSecret, name) {
-    let opostoDataS
     let infos = {
         symbol: data.s,
         timestamp: Date.now(),
         recvWindow: 60000
     }
+    let res
     const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
     // console.log('signature', signature)
     const qs = `?${new URLSearchParams({ ...infos, signature })}`
     try {
         const result = await axios({
             method: 'GET',
-            url: `${apiUrlFutures}/v1/allOrders${qs}`,
+            url: `${apiUrlFutures}/v2/positionRisk${qs}`,
             headers: { 'X-MBX-APIKEY': apiKey }
         })
-        if (data.S === 'SELL') {
-            opostoDataS = 'BUY'
-        } else {
-            opostoDataS = 'SELL'
-        }
+
         console.log('GetOrderFutures result', result.data)
-        console.log('GetOrderFutures data', data)
-        const filter = result.data.filter((ordem) => ordem.positionSide === opostoDataS && ordem.symbol === data.s)
-        console.log('filter', filter)
-        return filter[0]
+        // console.log('GetOrderFutures data', data)
+        // const filter = result.data.filter((ordem) => ordem.positionSide === opostoDataS && ordem.symbol === data.s)
+        const filter = result.data.filter((ordem) => ordem.symbol === data.s)
+        console.log('filter', filter[0])
+        console.log('Number(filter[0].positionAmt)', Number(filter[0].positionAmt))
+        console.log('data.S', data.S)
+
+        if (Number(filter[0].positionAmt) >= 0 && data.S === 'BUY') {
+            console.log('caiu no buy')
+            return res = {
+                openPosition: true,
+                positionAmt: filter[0].positionAmt
+            }
+        } else if (Number(filter[0].positionAmt) <= 0 && data.S === 'SELL') {
+            console.log('caiu no sell')
+            return res = {
+                openPosition: true,
+                positionAmt: filter[0].positionAmt
+            }
+        } else {
+            console.log('caiu no else')
+            return res = {
+                openPosition: false,
+                positionAmt: filter[0].positionAmt
+            }
+        }
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
         console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
-        console.log('| erro', err.response.data, ' |')
+        console.log('| erro', err, ' |')
         console.log('*------------------------------------------------**************------------------------------------------------*')
         // console.error(err.respose ? err.respose : err.message)
     }
@@ -414,5 +445,6 @@ module.exports = {
     ChangeLeverage,
     ChangeMarginType,
     GetOrderFutures,
-    CancelOrderFutures
+    CancelOrderFutures,
+    GetPriceFutures
 }
