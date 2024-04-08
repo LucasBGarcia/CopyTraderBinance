@@ -6,7 +6,8 @@ const accounts = []
 let ValorTotalMasterSpot;
 let ValorTotalMasterFuturos;
 let PorcentagemMaster
-let AlavancagemMaster
+let AlavancagemMaster = 2
+let valorAtualFuturos
 
 async function loadAccounts() {
     const listenKey = await api.connectAccount()
@@ -140,10 +141,12 @@ async function copyTrade(trade, apiSecret, apiKey, apiName) {
 async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder) {
     let ValorEntrada
     console.log('isNewOrder', isNewOrder)
-    // const valorAtual = await api.GetPriceFutures(trade.s);
+    const valorAtual = await api.GetPriceFutures(trade.s);
+    console.log('tradeee', trade)
+    console.log('valorAtualFuturos', valorAtualFuturos)
     if (isNewOrder.openPosition) {
         const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey)
-        ValorEntrada = calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, trade.L, apiName)
+        ValorEntrada = calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, valorAtualFuturos, apiName)
     }
     // const newTrade = await handleCanceledOrdersFutures(trade)
     console.log('compra Cliente', ValorEntrada)
@@ -155,12 +158,13 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder) {
     }
     if (trade.q && parseFloat(trade.q)) {
         console.log(PorcentagemMaster)
-        if (ValorEntrada) {
+        if (isNewOrder.openPosition) {
             console.log('compra Cliente', ValorEntrada)
             data.quantity = Math.abs(ValorEntrada).toString()
         } else {
             data.quantity = isNewOrder.positionAmt
         }
+        // data.quantity = trade.q
     }
     if (trade.p && parseFloat(trade.p))
         data.price = trade.p
@@ -245,8 +249,9 @@ async function start() {
 
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
-
-        console.log("trade", trade)
+        if (trade.o && Number(trade.o.L) > 0) {
+            valorAtualFuturos = Number(trade.o.L)
+        }
         if (trade.a && trade.a.m === 'MARGIN_TYPE_CHANGE') {
             console.log(trade.a.P[0].mt)
             await handleChangeMarginType(trade.a)
@@ -258,10 +263,16 @@ async function start() {
         if (trade.a && trade.a.B[0]) {
             PorcentagemMaster = await tradePorcentageMasterFuturos(trade.a.B[0]);
         }
-        if (trade.e === "ORDER_TRADE_UPDATE") {
-            // oldOrders[trade.i] = true;
+
+        if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i]) {
+            console.log("ta caindo no primeiro ORDER_TRADE_UPDATE")
+            oldOrders[trade.i] = true;
             await handleNewOrdersFutures(trade.o);
+        } else {
+            console.log("ta caindo no SEGUNDO ORDER_TRADE_UPDATE")
+            await handleCanceledOrdersFutures(trade.o);
         }
+
     }
 
     ws.onmessage = async (event) => {
@@ -304,26 +315,6 @@ async function handleCanceledOrders(trade) {
 
     await handlePromise(pr);
 }
-async function handleCanceledOrdersFutures(trade) {
-    const pr = accounts.map(async (acc) => {
-        const infos = { symbol: trade.s };
-        const response = await api.GetOrderFutures(trade, acc.apiKey, acc.apiSecret, acc.Name);
-
-        if (!response) {
-            return (`Ordem não encontrada na conta ${acc.Name}`);
-        }
-
-        console.log('response', response);
-        // const orderId = response.orderId;
-        // const clientOrderId = response.clientOrderId;
-        // infos.orderId = orderId;
-        // infos.clientOrderId = clientOrderId;
-        // await api.CancelOrder(infos, acc.apiKey, acc.apiSecret, acc.Name, trade.p, trade.S);
-        // console.log(`Ordem cancelada na conta ${acc.Name}`);
-    });
-
-    await handlePromise(pr);
-}
 
 async function handleNewOrders(trade) {
     const pr = accounts.map(async (acc) => {
@@ -333,18 +324,30 @@ async function handleNewOrders(trade) {
 
     await handlePromise(pr);
 }
-async function handleNewOrdersFutures(trade) {
-    const pr = accounts.map(async (acc) => {
+async function handleCanceledOrdersFutures(trade) {
+    const handleAccount = async (acc) => {
         const response = await api.GetOrderFutures(trade, acc.apiKey, acc.apiSecret, acc.Name);
-        console.log("response get order Futuros", response);
-        if (!response) {
-            return (`Ordem não encontrada na conta ${acc.Name}`);
-        }
+
         const data = await copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response);
         return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
-    });
+    };
 
-    await handlePromise(pr);
+    const promises = accounts.map(handleAccount);
+    await handlePromise(promises);
+}
+
+async function handleNewOrdersFutures(trade) {
+    const response = {
+        openPosition: true,
+        positionAmt: 0
+    }
+    const handleAccount = async (acc) => {
+        const data = await copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response);
+        return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
+    };
+
+    const promises = accounts.map(handleAccount);
+    await handlePromise(promises);
 }
 
 async function handleChangeLeverage(trade) {
@@ -377,6 +380,7 @@ async function handlePromise(pr) {
     try {
         const results = await Promise.allSettled(pr);
         console.log('resultado', results);
+        start()
         console.log('waiting trades...');
         // process.exit(0)
     } catch (error) {

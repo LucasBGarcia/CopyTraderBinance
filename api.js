@@ -265,15 +265,8 @@ async function GetOrderFutures(data, apiKey, apiSecret, name) {
             url: `${apiUrlFutures}/v2/positionRisk${qs}`,
             headers: { 'X-MBX-APIKEY': apiKey }
         })
-
-        console.log('GetOrderFutures result', result.data)
-        // console.log('GetOrderFutures data', data)
-        // const filter = result.data.filter((ordem) => ordem.positionSide === opostoDataS && ordem.symbol === data.s)
         const filter = result.data.filter((ordem) => ordem.symbol === data.s)
         console.log('filter', filter[0])
-        console.log('Number(filter[0].positionAmt)', Number(filter[0].positionAmt))
-        console.log('data.S', data.S)
-
         if (Number(filter[0].positionAmt) >= 0 && data.S === 'BUY') {
             console.log('caiu no buy')
             return res = {
