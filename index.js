@@ -4,7 +4,7 @@ const api = require("./api");
 const Calcula_procentagem = require("./utils/Calcula_porcentagem")
 const Copy_Trade = require("./utils/Copy_Trade")
 var LocalStorage = require('node-localstorage').LocalStorage
-localStorage = new LocalStorage('./oldOrders')
+localStorage = new LocalStorage('./db')
 
 const accounts = [];
 let ValorTotalMasterSpot;
@@ -12,7 +12,7 @@ let ValorTotalMasterFuturos;
 let PorcentagemMaster;
 let AlavancagemMaster = 2;
 let valorAtualFuturos;
-let dadosJSON = localStorage.getItem('oldOrders.json')
+let dadosJSON = localStorage.getItem('dados.json')
 let dados = JSON.parse(dadosJSON)
 
 async function loadAccounts() {
@@ -35,15 +35,7 @@ async function loadAccounts() {
     return listenKey;
 }
 
-async function calcPorcFuturos(trade) {
-    if (trade.a && trade.a.B[0]) {
-        PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(trade.a.B[0], ValorTotalMasterFuturos, AlavancagemMaster);
-    }
-}
 
-const oldOrders = {
-    "odens": []
-};
 let oldTrade;
 
 function VerificaOldOrder(trade) {
@@ -86,7 +78,7 @@ async function start() {
         // const response = await api.GetOrderFutures(trade.o, acc.apiKey, acc.apiSecret, acc.Name);
         if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'NEW') {
             dados.ordens.push(trade.o.i);
-            localStorage.setItem('oldOrders.json', JSON.stringify(dados));
+            localStorage.setItem('dados.json', JSON.stringify(dados));
         }
         VerificaOldOrder(trade)
         if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
@@ -103,8 +95,6 @@ async function start() {
         //     oldOrders[trade.i] = true;
         //     await handleNewOrdersFutures(trade.o);
         // }
-
-
 
     };
 
