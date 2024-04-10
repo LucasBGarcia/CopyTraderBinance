@@ -37,7 +37,7 @@ async function loadAccounts() {
 
 
 let oldTrade;
-
+let oldOrders = {}
 function VerificaOldOrder(trade) {
     if (trade.e === 'ORDER_TRADE_UPDATE') {
         dados.ordens.map((ordem) => {
@@ -83,13 +83,10 @@ async function start() {
         VerificaOldOrder(trade)
         if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
             console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
-            oldOrders[trade.i] = true;
             await handleNewOrdersFutures(trade.o);
         } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
             await handleCancelOrdersFutures(trade.o);
-
         }
-
         // if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i] && trade.o.X === 'NEW' && valorAtualFuturos) {
         //     console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
         //     oldOrders[trade.i] = true;
