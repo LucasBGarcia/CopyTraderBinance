@@ -244,12 +244,14 @@ async function GetPriceFutures(symbol) {
             url: `${apiUrlFutures}/v1/premiumIndex${qs}`,
         })
         console.log(result.data)
+        return result.data.markPrice
     } catch (err) {
         console.log('err ao capturar valor atual', err)
     }
 }
 
 async function GetOrderFutures(data, apiKey, apiSecret, name) {
+    console.log(data)
     let infos = {
         symbol: data.s,
         timestamp: Date.now(),
@@ -266,7 +268,6 @@ async function GetOrderFutures(data, apiKey, apiSecret, name) {
             headers: { 'X-MBX-APIKEY': apiKey }
         })
         const filter = result.data.filter((ordem) => ordem.symbol === data.s)
-        console.log('filter', filter[0])
         if (Number(filter[0].positionAmt) >= 0 && data.S === 'BUY') {
             console.log('caiu no buy')
             return res = {
@@ -289,7 +290,7 @@ async function GetOrderFutures(data, apiKey, apiSecret, name) {
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
         console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
-        console.log('| erro', err, ' |')
+        console.log('| erro', err.response.data, ' |')
         console.log('*------------------------------------------------**************------------------------------------------------*')
         // console.error(err.respose ? err.respose : err.message)
     }
