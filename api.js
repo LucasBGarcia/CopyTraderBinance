@@ -185,6 +185,8 @@ async function CancelOrder(data, apiKey, apiSecret, name, quantidade, type) {
 async function CancelOrderFutures(data, apiKey, apiSecret, name, quantidade, type) {
     let infos = {
         symbol: data.symbol,
+        orderId: data.orderId,
+        clientOrderId: data.clientOrderId,
         timestamp: Date.now(),
         recvWindow: 60000,
     }
@@ -209,7 +211,7 @@ async function CancelOrderFutures(data, apiKey, apiSecret, name, quantidade, typ
         // console.error(err.respose ? err.respose : err.message)
     }
 }
-async function GetOrder(data, apiKey, apiSecret, name) {
+async function GetOrder(data, apiKey, apiSecret, name, isFutures) {
     let infos = {
         symbol: data.s,
         timestamp: Date.now(),
@@ -219,14 +221,27 @@ async function GetOrder(data, apiKey, apiSecret, name) {
     // console.log('signature', signature)
     const qs = `?${new URLSearchParams({ ...infos, signature })}`
     try {
-        const result = await axios({
-            method: 'GET',
-            url: `${apiUrl}/v3/openOrders${qs}`,
-            headers: { 'X-MBX-APIKEY': apiKey }
-        })
-        // console.log('newOrder result', result)
-        const filter = result.data.filter((ordem) => ordem.price === data.p && ordem.side === data.S)
-        return filter[0]
+        if (!isFutures) {
+            const result = await axios({
+                method: 'GET',
+                url: `${apiUrl}/v3/openOrders${qs}`,
+                headers: { 'X-MBX-APIKEY': apiKey }
+            })
+            // console.log('newOrder result', result)
+            const filter = result.data.filter((ordem) => ordem.price === data.p && ordem.side === data.S)
+            return filter[0]
+        } else {
+            const result = await axios({
+                method: 'GET',
+                url: `${apiUrlFutures}/v1/openOrders${qs}`,
+                headers: { 'X-MBX-APIKEY': apiKey }
+            })
+            console.log('GET ORDER result', result.data)
+            console.log('GET ORDER trade', data)
+            const filter = result.data.filter((ordem) => ordem.price === data.p && ordem.side === data.S)
+            return filter[0]
+
+        }
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
         console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
@@ -243,7 +258,7 @@ async function GetPriceFutures(symbol) {
             method: 'GET',
             url: `${apiUrlFutures}/v1/premiumIndex${qs}`,
         })
-        console.log(result.data)
+        // console.log(result.data)
         return result.data.markPrice
     } catch (err) {
         console.log('err ao capturar valor atual', err)
@@ -353,7 +368,7 @@ async function newOrderFutures(data, apiKey, apiSecret) {
 
     data.timestamp = Date.now();
     data.recvWindow = 60000;//máximo permitido, default 5000
-    console.log('data new order futures', data)
+    // console.log('data new order futures', data)
     const signature = crypto
         .createHmac('sha256', apiSecret)
         .update(`${new URLSearchParams(data)}`)

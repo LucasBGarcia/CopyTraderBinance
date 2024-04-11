@@ -71,12 +71,9 @@ async function copyTrade(trade, apiSecret, apiKey, apiName, PorcentagemMaster) {
 
 async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, PorcentagemMaster, valorAtualFuturos) {
     let ValorEntrada;
-    console.log('isNewOrder', isNewOrder);
+    console.log('TRADE', trade)
+
     const valorAtual = !valorAtualFuturos ? await api.GetPriceFutures(trade.s) : valorAtualFuturos
-    console.log('tradeee', trade);
-    console.log('valorAtualFuturos', valorAtualFuturos);
-    console.log('valorAtual', valorAtual);
-    console.log('PorcentagemMaster', PorcentagemMaster);
     if (isNewOrder.openPosition) {
         const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey);
         ValorEntrada = Calcula_procentagem.calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, valorAtual, apiName);
@@ -88,7 +85,6 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
     };
     // if (trade.q && parseFloat(trade.q)) {
     if (isNewOrder.openPosition) {
-        console.log('compra Cliente', ValorEntrada);
         data.quantity = Math.abs(ValorEntrada).toString();
     } else {
         const positivo = Math.abs(Number(isNewOrder.positionAmt))
@@ -99,8 +95,6 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
         data.price = trade.p;
     }
     if (trade.f && trade.f !== "GTC") {
-        data.timeInForce = trade.f;
-    } else {
         data.timeInForce = trade.f;
     }
     if (trade.sp && parseFloat(trade.sp)) {
@@ -115,7 +109,6 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
     if (trade.cr && parseFloat(trade.cr)) {
         data.callbackRate = trade.cr;
     }
-    console.log("data", data);
     return data;
 }
 

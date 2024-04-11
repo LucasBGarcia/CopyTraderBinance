@@ -2,9 +2,6 @@ const api = require('../api')
 const encontrarPrimeiroNaoZero = require('./Encontra_primeiro_nao_Zero');
 
 function calcularValorPorPorcentagem(valorCarteira, porcentagem, tradeq, valorAtual, apiName) {
-    console.log('porcentagem recebida', porcentagem);
-    console.log('Valor da carteira', valorCarteira);
-    console.log('valor atual', valorAtual);
     const quantidadeNumber = Number(tradeq);
     const valor = encontrarPrimeiroNaoZero(quantidadeNumber.toFixed(8));
     const valorReferentePorcentagem = (porcentagem / 100) * valorCarteira;
@@ -19,7 +16,7 @@ async function tradePorcentageMasterFuturos(ValorTotalMasterFuturos, Alavancagem
     // const valorgasto = trade.wb - trade.cw;
     const porcentagem = (valorgasto / ValorTotalMasterFuturos) * 100;
     // console.log('trade porcentagem ', trade);
-    console.log('trade porcentagem retorno', porcentagem.toFixed(2));
+    // console.log('trade porcentagem retorno', porcentagem.toFixed(2));
     const porcentagemFinal = porcentagem.toFixed(2) * AlavancagemMaster;
     return porcentagemFinal.toFixed(2);
 }

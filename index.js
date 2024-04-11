@@ -58,13 +58,12 @@ async function start() {
 
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
-        console.log('trade principal', trade)
+        console.log('trade principal', trade);
+        console.log('Efetuando trades no futuros, aguarde...')
         if (trade.o && Number(trade.o.L) > 0) {
             valorAtualFuturos = Number(trade.o.L);
-            console.log('valor atual dentro do start', valorAtualFuturos)
         }
         if (trade.a && trade.a.m === 'MARGIN_TYPE_CHANGE') {
-            console.log(trade.a.P[0].mt);
             await handleChangeMarginType(trade.a);
         }
         if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
@@ -72,21 +71,24 @@ async function start() {
         }
         // if (trade.a && trade.a.B[0]) {
         PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
-        console.log('retorno da porcentagem da master', PorcentagemMaster);
         // }
-        // accounts.map(async (acc) => {
-        // const response = await api.GetOrderFutures(trade.o, acc.apiKey, acc.apiSecret, acc.Name);
 
         VerificaOldOrder(trade)
         if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
-            console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
+            console.log('ta caindo no primeiro')
             await handleNewOrdersFutures(trade.o);
         } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
-            await handleCancelOrdersFutures(trade.o);
-        } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && (trade.o.X === 'FILLED' || trade.o.X === 'CANCELED')) {
-            await handleCancelOrdersFutures(trade.o);
+            console.log('ta caindo no segundo')
+            await handleCancelTradeFutures(trade.o);
+        } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
+            console.log('ta caindo no terceiro')
+            await handleCancelTradeFutures(trade.o);
+        } if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
+            console.log('ta caindo no quarto')
+            await handleCanceledOrdersFutures(trade.o);
         }
-        if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'NEW') {
+        if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'FILLED') {
+            console.log('ta caindo no quinto')
             dados.ordens.push(trade.o.i);
             localStorage.setItem('dados.json', JSON.stringify(dados));
         }
@@ -100,6 +102,7 @@ async function start() {
 
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
+        console.log('Efetuando trades em spot, aguarde...')
 
         if (trade.e === 'executionReport' && trade.o === 'LIMIT' && trade.x === 'CANCELED') {
             oldOrders[trade.i] = true;
@@ -120,7 +123,7 @@ async function start() {
 async function handleCanceledOrders(trade) {
     const pr = accounts.map(async (acc) => {
         const infos = { symbol: trade.s };
-        const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name);
+        const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name, false);
 
         if (!response) {
             return (`Ordem não encontrada na conta ${acc.Name}`);
@@ -136,6 +139,25 @@ async function handleCanceledOrders(trade) {
 
     await handlePromise(pr);
 }
+async function handleCanceledOrdersFutures(trade) {
+
+    const pr = accounts.map(async (acc) => {
+        const infos = { symbol: trade.s };
+        const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name, true);
+
+        if (!response) {
+            return (`Ordem não encontrada na conta ${acc.Name}`);
+        }
+        const orderId = response.orderId;
+        const clientOrderId = response.clientOrderId;
+        infos.orderId = orderId;
+        infos.clientOrderId = clientOrderId;
+        await api.CancelOrderFutures(infos, acc.apiKey, acc.apiSecret, acc.Name, trade.p, trade.S);
+        console.log(`Ordem cancelada na conta ${acc.Name}`);
+    });
+
+    await handlePromise(pr);
+}
 
 async function handleNewOrders(trade) {
     const pr = accounts.map(async (acc) => {
@@ -145,10 +167,10 @@ async function handleNewOrders(trade) {
 
     await handlePromise(pr);
 }
-async function handleCancelOrdersFutures(trade) {
+async function handleCancelTradeFutures(trade) {
     const handleAccount = async (acc) => {
         const response = await api.GetOrderFutures(trade, acc.apiKey, acc.apiSecret, acc.Name);
-
+        console.log('response', response)
         const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster, valorAtualFuturos);
         return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
     };
@@ -158,13 +180,11 @@ async function handleCancelOrdersFutures(trade) {
 }
 
 async function handleNewOrdersFutures(trade) {
-    console.log('handleNewOrdersFutures data', trade)
     const response = {
         openPosition: true,
         positionAmt: 0
     };
     const handleAccount = async (acc) => {
-        console.log('dados enviados', (trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster))
         const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster);
         return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
     };
@@ -202,7 +222,6 @@ async function handleChangeMarginType(trade) {
 
 async function handlePromise(pr) {
     try {
-        console.log('handlePromise')
         const results = await Promise.allSettled(pr);
         console.log('resultado', results);
         console.log('waiting trades...');
