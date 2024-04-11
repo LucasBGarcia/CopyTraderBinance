@@ -36,7 +36,7 @@ async function loadAccounts() {
 }
 
 
-let oldTrade;
+let oldTrade = false
 let oldOrders = {}
 function VerificaOldOrder(trade) {
     if (trade.e === 'ORDER_TRADE_UPDATE') {
@@ -70,22 +70,25 @@ async function start() {
         if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
             await handleChangeLeverage(trade.ac);
         }
-        if (trade.a && trade.a.B[0]) {
-            PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(trade.a.B[0], ValorTotalMasterFuturos, AlavancagemMaster);
-            console.log('retorno da porcentagem da master', PorcentagemMaster);
-        }
+        // if (trade.a && trade.a.B[0]) {
+        PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
+        console.log('retorno da porcentagem da master', PorcentagemMaster);
+        // }
         // accounts.map(async (acc) => {
         // const response = await api.GetOrderFutures(trade.o, acc.apiKey, acc.apiSecret, acc.Name);
+
+        VerificaOldOrder(trade)
+        if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
+            console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
+            await handleNewOrdersFutures(trade.o);
+        } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
+            await handleCancelOrdersFutures(trade.o);
+        } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && (trade.o.X === 'FILLED' || trade.o.X === 'CANCELED')) {
+            await handleCancelOrdersFutures(trade.o);
+        }
         if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'NEW') {
             dados.ordens.push(trade.o.i);
             localStorage.setItem('dados.json', JSON.stringify(dados));
-        }
-        VerificaOldOrder(trade)
-        if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
-            console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
-            await handleNewOrdersFutures(trade.o);
-        } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
-            await handleCancelOrdersFutures(trade.o);
         }
         // if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i] && trade.o.X === 'NEW' && valorAtualFuturos) {
         //     console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
@@ -155,6 +158,7 @@ async function handleCancelOrdersFutures(trade) {
 }
 
 async function handleNewOrdersFutures(trade) {
+    console.log('handleNewOrdersFutures data', trade)
     const response = {
         openPosition: true,
         positionAmt: 0

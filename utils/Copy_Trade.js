@@ -72,7 +72,7 @@ async function copyTrade(trade, apiSecret, apiKey, apiName, PorcentagemMaster) {
 async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, PorcentagemMaster, valorAtualFuturos) {
     let ValorEntrada;
     console.log('isNewOrder', isNewOrder);
-    const valorAtual = await api.GetPriceFutures(trade.s)
+    const valorAtual = !valorAtualFuturos ? await api.GetPriceFutures(trade.s) : valorAtualFuturos
     console.log('tradeee', trade);
     console.log('valorAtualFuturos', valorAtualFuturos);
     console.log('valorAtual', valorAtual);
@@ -86,19 +86,21 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
         side: trade.S,
         type: trade.o
     };
-    if (trade.q && parseFloat(trade.q)) {
-        if (isNewOrder.openPosition) {
-            console.log('compra Cliente', ValorEntrada);
-            data.quantity = Math.abs(ValorEntrada).toString();
-        } else {
-            const positivo = Math.abs(Number(isNewOrder.positionAmt))
-            data.quantity = positivo;
-        }
+    // if (trade.q && parseFloat(trade.q)) {
+    if (isNewOrder.openPosition) {
+        console.log('compra Cliente', ValorEntrada);
+        data.quantity = Math.abs(ValorEntrada).toString();
+    } else {
+        const positivo = Math.abs(Number(isNewOrder.positionAmt))
+        data.quantity = positivo;
     }
+    // }
     if (trade.p && parseFloat(trade.p)) {
         data.price = trade.p;
     }
     if (trade.f && trade.f !== "GTC") {
+        data.timeInForce = trade.f;
+    } else {
         data.timeInForce = trade.f;
     }
     if (trade.sp && parseFloat(trade.sp)) {
