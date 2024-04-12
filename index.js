@@ -29,10 +29,7 @@ async function loadAccounts() {
     console.log(`${i - 1} copy accounts loaded`);
 
     await ShowBalances()
-    // await Promise.all(accounts.map(async (account) => {
-    //     const balance = await api.InfoAccountBalance(account.apiSecret, account.apiKey);
-    //     console.log(`${account.Name} USDT SPOT ${balance.valorSpot} | USDT FUTURES ${balance.valorFutures}`);
-    // }));
+
     return listenKey;
 }
 
@@ -58,7 +55,6 @@ async function start() {
 
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
-        console.log('trade principal', trade);
         console.log('Efetuando trades no futuros, aguarde...')
         if (trade.o && Number(trade.o.L) > 0) {
             valorAtualFuturos = Number(trade.o.L);
@@ -81,19 +77,14 @@ async function start() {
                 }
             })
         }
-        console.log("oldTrade", oldTrade)
         if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
-            console.log('ta caindo no primeiro')
-            await handleCancelTradeFutures(trade.o);
+            await handleNewTradeFutures(trade.o);
             oldTrade = false
         } else if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
-            console.log('ta caindo no segundo')
-            await handleCancelTradeFutures(trade.o);
+            await handleNewTradeFutures(trade.o);
         } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
-            console.log('ta caindo no terceiro')
-            await handleCancelTradeFutures(trade.o);
+            await handleNewTradeFutures(trade.o);
         } if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
-            console.log('ta caindo no quarto')
             await handleCanceledOrdersFutures(trade.o);
         }
         // if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'FILLED') {
@@ -176,10 +167,9 @@ async function handleNewOrders(trade) {
 
     await handlePromise(pr);
 }
-async function handleCancelTradeFutures(trade) {
+async function handleNewTradeFutures(trade) {
     const handleAccount = async (acc) => {
         const response = await api.GetOrderFutures(trade, acc.apiKey, acc.apiSecret, acc.Name);
-        console.log('response', response)
         const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster, valorAtualFuturos);
         return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
     };
@@ -188,20 +178,20 @@ async function handleCancelTradeFutures(trade) {
     await handlePromise(promises);
 }
 
-async function handleNewOrdersFutures(trade) {
-    const response = {
-        openPosition: true,
-        positionAmt: 0
-    };
-    const handleAccount = async (acc) => {
-        const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster);
-        return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
-    };
+// async function handleNewOrdersFutures(trade) {
+//     const response = {
+//         openPosition: true,
+//         positionAmt: 0
+//     };
+//     const handleAccount = async (acc) => {
+//         const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster);
+//         return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
+//     };
 
 
-    const promises = accounts.map(handleAccount);
-    await handlePromise(promises);
-}
+//     const promises = accounts.map(handleAccount);
+//     await handlePromise(promises);
+// }
 
 async function handleChangeLeverage(trade) {
     AlavancagemMaster = trade.l;

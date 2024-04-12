@@ -75,7 +75,6 @@ async function copyTrade(trade, apiSecret, apiKey, apiName, PorcentagemMaster) {
 
 async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, PorcentagemMaster, valorAtualFuturos) {
     let ValorEntrada;
-    console.log('TRADE', trade)
 
     const valorAtual = !valorAtualFuturos ? await api.GetPriceFutures(trade.s) : valorAtualFuturos
     if (isNewOrder.openPosition) {
@@ -113,7 +112,6 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
     if (trade.cr && parseFloat(trade.cr)) {
         data.callbackRate = trade.cr;
     }
-    console.log('ta caindo no quinto')
     dados.ordens.push(trade.i);
     localStorage.setItem('dados.json', JSON.stringify(dados));
     return data;

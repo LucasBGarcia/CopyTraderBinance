@@ -234,8 +234,8 @@ async function GetOrder(data, apiKey, apiSecret, name, isFutures) {
                 url: `${apiUrlFutures}/v1/openOrders${qs}`,
                 headers: { 'X-MBX-APIKEY': apiKey }
             })
-            console.log('GET ORDER result', result.data)
-            console.log('GET ORDER trade', data)
+            // console.log('GET ORDER result', result.data)
+            // console.log('GET ORDER trade', data)
             const filter = result.data.filter((ordem) => ordem.price === data.p && ordem.side === data.S)
             return filter[0]
 
@@ -264,7 +264,6 @@ async function GetPriceFutures(symbol) {
 }
 
 async function GetOrderFutures(data, apiKey, apiSecret, name) {
-    console.log(data)
     let infos = {
         symbol: data.s,
         timestamp: Date.now(),
@@ -282,19 +281,19 @@ async function GetOrderFutures(data, apiKey, apiSecret, name) {
         })
         const filter = result.data.filter((ordem) => ordem.symbol === data.s)
         if (Number(filter[0].positionAmt) >= 0 && data.S === 'BUY') {
-            console.log('caiu no buy')
+            // console.log('caiu no buy')
             return res = {
                 openPosition: true,
                 positionAmt: filter[0].positionAmt
             }
         } else if (Number(filter[0].positionAmt) <= 0 && data.S === 'SELL') {
-            console.log('caiu no sell')
+            // console.log('caiu no sell')
             return res = {
                 openPosition: true,
                 positionAmt: filter[0].positionAmt
             }
         } else {
-            console.log('caiu no else')
+            // console.log('caiu no else')
             return res = {
                 openPosition: false,
                 positionAmt: filter[0].positionAmt
@@ -325,7 +324,6 @@ async function GetAllOrder(data, apiKey, apiSecret, name) {
         })
         // console.log('newOrder result', result)
         console.log(`SUCESSO: Conta ${name} | Ordem: ${data.side} ${data.symbol} ${data.quantity}`)
-        //VERIFICAR SE ESTÁ CORRETO, FAZENDO SEM TESTE
         return result.data
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
@@ -360,7 +358,7 @@ async function newOrder(data, apiKey, apiSecret, name) {
     }
 }
 
-async function newOrderFutures(data, apiKey, apiSecret) {
+async function newOrderFutures(data, apiKey, apiSecret, name) {
     if (!apiKey || !apiSecret)
         throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
 
@@ -382,17 +380,20 @@ async function newOrderFutures(data, apiKey, apiSecret) {
         });
         return result.data;
     } catch (err) {
-        console.error(err.response.data);
+        if (err.response.data.code === -2015) {
+            console.log(`Sem permissão na conta ${name}`)
+        } else {
+            console.error(err.response ? err.response.data : err.data);
+        }
     }
 }
 
-async function ChangeLeverage(data, apiKey, apiSecret) {
+async function ChangeLeverage(data, apiKey, apiSecret, name) {
     if (!apiKey || !apiSecret)
         throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
 
     data.timestamp = Date.now();
     data.recvWindow = 60000;//máximo permitido, default 5000
-    console.log('data CHANGE LEVERAGE', data)
     const signature = crypto
         .createHmac('sha256', apiSecret)
         .update(`${new URLSearchParams(data)}`)
@@ -408,17 +409,20 @@ async function ChangeLeverage(data, apiKey, apiSecret) {
         });
         return result.data;
     } catch (err) {
-        console.error(err.response ? err.response : err.data);
+        if (err.response.data.code === -2015) {
+            console.log(`Sem permissão na conta ${name}`)
+        } else {
+            console.error(err.response ? err.response.data : err.data);
+        }
     }
 }
 
-async function ChangeMarginType(data, apiKey, apiSecret) {
+async function ChangeMarginType(data, apiKey, apiSecret, name) {
     if (!apiKey || !apiSecret)
         throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
 
     data.timestamp = Date.now();
     data.recvWindow = 60000;//máximo permitido, default 5000
-    console.log('data CHANGE LEVERAGE', data)
     const signature = crypto
         .createHmac('sha256', apiSecret)
         .update(`${new URLSearchParams(data)}`)
@@ -434,7 +438,11 @@ async function ChangeMarginType(data, apiKey, apiSecret) {
         });
         return result.data;
     } catch (err) {
-        console.error(err.response.data);
+        if (err.response.data.code === -2015) {
+            console.log(`Sem permissão na conta ${name}`)
+        } else {
+            console.error(err.response ? err.response.data : err.data);
+        }
     }
 }
 
