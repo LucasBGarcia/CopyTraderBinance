@@ -1,136 +1,114 @@
 require("dotenv").config();
-var prompt = require('prompt-sync')()
-const WebSocket = require('ws')
-const api = require("./api")
-const accounts = []
-let ValorTotalMaster;
-let PorcentagemMaster
+const WebSocket = require('ws');
+const api = require("./api");
+const Calcula_procentagem = require("./utils/Calcula_porcentagem")
+const Copy_Trade = require("./utils/Copy_Trade")
+var LocalStorage = require('node-localstorage').LocalStorage
+localStorage = new LocalStorage('./db')
+
+const accounts = [];
+const accountsFutures = [];
+let ValorTotalMasterSpot;
+let ValorTotalMasterFuturos;
+let PorcentagemMaster;
+let AlavancagemMaster = 2;
+let valorAtualFuturos;
+let dadosJSON = localStorage.getItem('dados.json')
+let dados = JSON.parse(dadosJSON)
 
 async function loadAccounts() {
-    const { listenKey } = await api.connectAccount()
+    const listenKey = await api.connectAccount();
     let i = 1;
     while (process.env[`TRADER${i}_API_KEY`]) {
         accounts.push({
             Name: process.env[`TRADER${i}_NAME`],
             apiKey: process.env[`TRADER${i}_API_KEY`],
             apiSecret: process.env[`TRADER${i}_API_SECRET`]
-        })
-        i++
+        });
+        if (process.env[`TRADER${i}_FUTURES`] === 'true') {
+            accountsFutures.push({
+                Name: process.env[`TRADER${i}_NAME`],
+                apiKey: process.env[`TRADER${i}_API_KEY`],
+                apiSecret: process.env[`TRADER${i}_API_SECRET`]
+            });
+        }
+        i++;
     }
-    console.log(`${i - 1} copy accounts loaded`)
+    console.log(`${i - 1} copy accounts loaded`);
+    await ShowBalances()
+    return listenKey;
+}
 
+async function ShowBalances() {
     await Promise.all(accounts.map(async (account) => {
-        let balance = await api.InfoAccountBalance(account.apiSecret, account.apiKey);
-        console.log(`${account.Name} USDT ${balance}`);
+        const balance = await api.InfoAccountBalance(account.apiSecret, account.apiKey);
+        console.log(`${account.Name} USDT SPOT ${balance.valorSpot} | USDT FUTURES ${balance.valorFutures}`);
     }));
-    return listenKey
 }
 
-async function tradePorcentageMaster() {
-    const ValueAfterTrade = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY)
-    const valorgasto = ValorTotalMaster - ValueAfterTrade
-    const porcentagem = (valorgasto / ValorTotalMaster) * 100;
-    return porcentagem.toFixed(2);
-}
+let oldTrade = false
+let oldOrders = {}
 
-function encontrarPrimeiroNaoZero(numero) {
-    let valorSplit = numero.split('.')
-    let valor = valorSplit[1]
-    let contador = 0
-    for (let i = valor.length - 1; i >= 0; i--) {
-        contador++
-        if (valor[i] !== '0') {
-            return valor.length - contador + 1;
-        }
-    }
-    return 0; // Retorna 0 se todos os dígitos forem zeros
-}
-
-function calcularValorPorPorcentagem(valorCarteira, porcentagem, tradeq, valorAtual, apiName) {
-    const valor = encontrarPrimeiroNaoZero(tradeq)
-    const valorReferentePorcentagem = (porcentagem / 100) * valorCarteira;
-    const result = valorReferentePorcentagem / valorAtual
-    console.log(`${apiName} - Valor gasto: USDT ${valorReferentePorcentagem}`)
-    return result.toFixed(valor)
-}
-
-async function PegaMoedar(apiSecret, moeda, apiKey) {
-    const ValorCarteiraCliente = await api.InfoAccount(apiSecret, apiKey);
-    const moedaSplitCliente = moeda.split('USD')
-    const moedaCliente = ValorCarteiraCliente.filter(pares => pares.asset === moedaSplitCliente[0])
-    return (moedaCliente)
-}
-function buscaValor(symbol) {
-    return new Promise((resolve, reject) => {
-        const wsPrice = new WebSocket(`${process.env.STREAM_URL}/${symbol.toLowerCase()}@ticker`);
-        wsPrice.onmessage = (event) => {
-            const obj = JSON.parse(event.data);
-            const currentPrice = parseFloat(obj.a);
-            resolve(currentPrice);
-        };
-        wsPrice.onerror = (error) => {
-            reject(error);
-        };
-    });
-}
-async function copyTrade(trade, apiSecret, apiKey, apiName) {
-    let CompraCliente
-    let VendaCliente
-    const valorAtual = await buscaValor(trade.s);
-    if (trade.S == 'BUY') {
-        const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey)
-        CompraCliente = calcularValorPorPorcentagem(ValorCarteiraCliente, PorcentagemMaster, trade.q, valorAtual, apiName)
-    }
-    if (trade.S == 'SELL') {
-        const posicZero = encontrarPrimeiroNaoZero(trade.q)
-        const ValorCarteiraCliente = await PegaMoedar(apiSecret, trade.s, apiKey)
-        const valor = Number(ValorCarteiraCliente[0].free)
-        const fator = Math.pow(10, posicZero)
-        const arredonda = Math.floor(valor * fator) / fator
-        VendaCliente = arredonda.toFixed(posicZero)
-
-    }
-    const data = {
-        symbol: trade.s,
-        side: trade.S,
-        type: trade.o
-    }
-    if (trade.q && parseFloat(trade.q)) {
-        if (CompraCliente) {
-            data.quantity = Math.abs(CompraCliente).toString()
-        } else if (VendaCliente) {
-            data.quantity = Math.abs(VendaCliente).toString()
-        } else {
-            data.quantity = trade.q
-        }
-    }
-    if (trade.p && parseFloat(trade.p)) {
-        data.price = trade.p
-        data.timeInForce = trade.f
-    }
-    if (trade.f && trade.f !== "GTC") {
-        data.timeInForce = trade.f
-    }
-    if (trade.P && parseFloat(trade.P)) {
-        data.stopPrice = trade.P
-    }
-    // if (trade.Q && parseFloat(trade.Q)) {
-    //     data.quoteOrderQty = trade.Q
-    // }
-    // console.log(`Conta - ${apiName}: QTD entrada/saida -${trade.s} ${CompraCliente ? CompraCliente : VendaCliente}`)
-    return data;
-}
-
-
-const oldOrders = {}
 async function start() {
     console.clear();
-    ValorTotalMaster = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
+    const valoresIniciais = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
+    ValorTotalMasterSpot = valoresIniciais.valorSpot;
+    ValorTotalMasterFuturos = valoresIniciais.valorFutures;
 
     const listenKey = await loadAccounts();
-    const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey}`);
+    const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
+    const wsFuture = new WebSocket(`${process.env.BINANCE_WS_URL_FUTURE}/${listenKey.listenKeyFutures.listenKey}`);
+
+    wsFuture.onmessage = async (event) => {
+        const trade = JSON.parse(event.data);
+        console.log('Efetuando trades no futuros, aguarde...')
+        if (trade.o && Number(trade.o.L) > 0) {
+            valorAtualFuturos = Number(trade.o.L);
+        }
+        if (trade.a && trade.a.m === 'MARGIN_TYPE_CHANGE') {
+            await handleChangeMarginType(trade.a);
+        }
+        if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
+            await handleChangeLeverage(trade.ac);
+        }
+        // if (trade.a && trade.a.B[0]) {
+        PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
+        // }
+
+        // await VerificaOldOrder(trade)
+        if (trade.e === 'ORDER_TRADE_UPDATE') {
+            dados.ordens.map((ordem) => {
+                if (ordem === trade.o.i) {
+                    oldTrade = true
+                }
+            })
+        }
+        if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
+            await handleNewTradeFutures(trade.o);
+            oldTrade = false
+        } else if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
+            await handleNewTradeFutures(trade.o);
+        } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
+            await handleNewTradeFutures(trade.o);
+        } if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
+            await handleCanceledOrdersFutures(trade.o);
+        }
+        // if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'FILLED') {
+        //     console.log('ta caindo no quinto')
+        //     dados.ordens.push(trade.o.i);
+        //     localStorage.setItem('dados.json', JSON.stringify(dados));
+        // }
+        // if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i] && trade.o.X === 'NEW' && valorAtualFuturos) {
+        //     console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
+        //     oldOrders[trade.i] = true;
+        //     await handleNewOrdersFutures(trade.o);
+        // }
+
+    };
+
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
+        console.log('Efetuando trades em spot, aguarde...')
 
         if (trade.e === 'executionReport' && trade.o === 'LIMIT' && trade.x === 'CANCELED') {
             oldOrders[trade.i] = true;
@@ -139,7 +117,7 @@ async function start() {
 
         if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
             oldOrders[trade.i] = true;
-            PorcentagemMaster = await tradePorcentageMaster();
+            PorcentagemMaster = await Calcula_procentagem.tradePorcentageMaster(ValorTotalMasterSpot);
             await handleNewOrders(trade);
         }
     };
@@ -151,7 +129,7 @@ async function start() {
 async function handleCanceledOrders(trade) {
     const pr = accounts.map(async (acc) => {
         const infos = { symbol: trade.s };
-        const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name);
+        const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name, false);
 
         if (!response) {
             return (`Ordem não encontrada na conta ${acc.Name}`);
@@ -167,11 +145,82 @@ async function handleCanceledOrders(trade) {
 
     await handlePromise(pr);
 }
+async function handleCanceledOrdersFutures(trade) {
+
+    const pr = accountsFutures.map(async (acc) => {
+        const infos = { symbol: trade.s };
+        const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name, true);
+
+        if (!response) {
+            return (`Ordem não encontrada na conta ${acc.Name}`);
+        }
+        const orderId = response.orderId;
+        const clientOrderId = response.clientOrderId;
+        infos.orderId = orderId;
+        infos.clientOrderId = clientOrderId;
+        const res = await api.CancelOrderFutures(infos, acc.apiKey, acc.apiSecret, acc.Name, trade.p, trade.S);
+        console.log(`${res}`);
+        console.log(`Ordem cancelada na conta ${acc.Name}`);
+    });
+
+    await handlePromise(pr);
+}
 
 async function handleNewOrders(trade) {
     const pr = accounts.map(async (acc) => {
-        const data = await copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name);
+        const data = await Copy_Trade.copyTrade(trade, acc.apiSecret, acc.apiKey, acc.Name, PorcentagemMaster);
         return api.newOrder(data, acc.apiKey, acc.apiSecret, acc.Name);
+    });
+
+    await handlePromise(pr);
+}
+async function handleNewTradeFutures(trade) {
+    const handleAccount = async (acc) => {
+        const response = await api.GetOrderFutures(trade, acc.apiKey, acc.apiSecret, acc.Name);
+        const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster, valorAtualFuturos);
+        return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
+    };
+
+    const promises = accountsFutures.map(handleAccount);
+    await handlePromise(promises);
+}
+
+// async function handleNewOrdersFutures(trade) {
+//     const response = {
+//         openPosition: true,
+//         positionAmt: 0
+//     };
+//     const handleAccount = async (acc) => {
+//         const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster);
+//         return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
+//     };
+
+
+//     const promises = accounts.map(handleAccount);
+//     await handlePromise(promises);
+// }
+
+async function handleChangeLeverage(trade) {
+    AlavancagemMaster = trade.l;
+    const pr = accountsFutures.map(async (acc) => {
+        const data = {
+            symbol: trade.s,
+            leverage: trade.l
+        };
+        return api.ChangeLeverage(data, acc.apiKey, acc.apiSecret, acc.Name);
+    });
+
+    await handlePromise(pr);
+}
+
+async function handleChangeMarginType(trade) {
+    const mt = trade.P[0].mt === 'cross' ? 'CROSSED' : 'ISOLATED';
+    const pr = accountsFutures.map(async (acc) => {
+        const data = {
+            symbol: trade.P[0].s,
+            marginType: mt,
+        };
+        return api.ChangeMarginType(data, acc.apiKey, acc.apiSecret, acc.Name);
     });
 
     await handlePromise(pr);
@@ -181,10 +230,12 @@ async function handlePromise(pr) {
     try {
         const results = await Promise.allSettled(pr);
         console.log('resultado', results);
+        await ShowBalances()
         console.log('waiting trades...');
+        // process.exit(0)
     } catch (error) {
         console.log('erro:', error);
     }
 }
 
-start()
+start();
