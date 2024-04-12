@@ -28,25 +28,24 @@ async function loadAccounts() {
     }
     console.log(`${i - 1} copy accounts loaded`);
 
+    await ShowBalances()
+    // await Promise.all(accounts.map(async (account) => {
+    //     const balance = await api.InfoAccountBalance(account.apiSecret, account.apiKey);
+    //     console.log(`${account.Name} USDT SPOT ${balance.valorSpot} | USDT FUTURES ${balance.valorFutures}`);
+    // }));
+    return listenKey;
+}
+
+async function ShowBalances() {
     await Promise.all(accounts.map(async (account) => {
         const balance = await api.InfoAccountBalance(account.apiSecret, account.apiKey);
         console.log(`${account.Name} USDT SPOT ${balance.valorSpot} | USDT FUTURES ${balance.valorFutures}`);
     }));
-    return listenKey;
 }
-
 
 let oldTrade = false
 let oldOrders = {}
-function VerificaOldOrder(trade) {
-    if (trade.e === 'ORDER_TRADE_UPDATE') {
-        dados.ordens.map((ordem) => {
-            if (ordem === trade.o.i) {
-                oldTrade = true
-            }
-        })
-    }
-}
+
 async function start() {
     console.clear();
     const valoresIniciais = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
@@ -234,6 +233,7 @@ async function handlePromise(pr) {
     try {
         const results = await Promise.allSettled(pr);
         console.log('resultado', results);
+        await ShowBalances()
         console.log('waiting trades...');
         // process.exit(0)
     } catch (error) {
