@@ -2,6 +2,10 @@ const api = require('../api')
 const WebSocket = require('ws');
 const Calcula_procentagem = require('./Calcula_porcentagem');
 const encontrarPrimeiroNaoZero = require('./Encontra_primeiro_nao_Zero');
+var LocalStorage = require('node-localstorage').LocalStorage
+localStorage = new LocalStorage('./db')
+let dadosJSON = localStorage.getItem('dados.json')
+let dados = JSON.parse(dadosJSON)
 
 function buscaValor(symbol) {
     return new Promise((resolve, reject) => {
@@ -109,6 +113,9 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
     if (trade.cr && parseFloat(trade.cr)) {
         data.callbackRate = trade.cr;
     }
+    console.log('ta caindo no quinto')
+    dados.ordens.push(trade.i);
+    localStorage.setItem('dados.json', JSON.stringify(dados));
     return data;
 }
 

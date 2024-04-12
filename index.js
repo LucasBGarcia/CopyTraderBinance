@@ -41,8 +41,9 @@ let oldOrders = {}
 function VerificaOldOrder(trade) {
     if (trade.e === 'ORDER_TRADE_UPDATE') {
         dados.ordens.map((ordem) => {
-            if (ordem === trade.o.i)
+            if (ordem === trade.o.i) {
                 oldTrade = true
+            }
         })
     }
 }
@@ -73,11 +74,20 @@ async function start() {
         PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
         // }
 
-        VerificaOldOrder(trade)
+        // await VerificaOldOrder(trade)
+        if (trade.e === 'ORDER_TRADE_UPDATE') {
+            dados.ordens.map((ordem) => {
+                if (ordem === trade.o.i) {
+                    oldTrade = true
+                }
+            })
+        }
+        console.log("oldTrade", oldTrade)
         if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
             console.log('ta caindo no primeiro')
-            await handleNewOrdersFutures(trade.o);
-        } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
+            await handleCancelTradeFutures(trade.o);
+            oldTrade = false
+        } else if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
             console.log('ta caindo no segundo')
             await handleCancelTradeFutures(trade.o);
         } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
@@ -87,11 +97,11 @@ async function start() {
             console.log('ta caindo no quarto')
             await handleCanceledOrdersFutures(trade.o);
         }
-        if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'FILLED') {
-            console.log('ta caindo no quinto')
-            dados.ordens.push(trade.o.i);
-            localStorage.setItem('dados.json', JSON.stringify(dados));
-        }
+        // if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'FILLED') {
+        //     console.log('ta caindo no quinto')
+        //     dados.ordens.push(trade.o.i);
+        //     localStorage.setItem('dados.json', JSON.stringify(dados));
+        // }
         // if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i] && trade.o.X === 'NEW' && valorAtualFuturos) {
         //     console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
         //     oldOrders[trade.i] = true;
