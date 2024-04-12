@@ -7,6 +7,7 @@ var LocalStorage = require('node-localstorage').LocalStorage
 localStorage = new LocalStorage('./db')
 
 const accounts = [];
+const accountsFutures = [];
 let ValorTotalMasterSpot;
 let ValorTotalMasterFuturos;
 let PorcentagemMaster;
@@ -24,6 +25,13 @@ async function loadAccounts() {
             apiKey: process.env[`TRADER${i}_API_KEY`],
             apiSecret: process.env[`TRADER${i}_API_SECRET`]
         });
+        if (process.env[`TRADER${i}_FUTURES`] === 'true') {
+            accountsFutures.push({
+                Name: process.env[`TRADER${i}_NAME`],
+                apiKey: process.env[`TRADER${i}_API_KEY`],
+                apiSecret: process.env[`TRADER${i}_API_SECRET`]
+            });
+        }
         i++;
     }
     console.log(`${i - 1} copy accounts loaded`);
@@ -141,7 +149,7 @@ async function handleCanceledOrders(trade) {
 }
 async function handleCanceledOrdersFutures(trade) {
 
-    const pr = accounts.map(async (acc) => {
+    const pr = accountsFutures.map(async (acc) => {
         const infos = { symbol: trade.s };
         const response = await api.GetOrder(trade, acc.apiKey, acc.apiSecret, acc.Name, true);
 
@@ -152,7 +160,8 @@ async function handleCanceledOrdersFutures(trade) {
         const clientOrderId = response.clientOrderId;
         infos.orderId = orderId;
         infos.clientOrderId = clientOrderId;
-        await api.CancelOrderFutures(infos, acc.apiKey, acc.apiSecret, acc.Name, trade.p, trade.S);
+        const res = await api.CancelOrderFutures(infos, acc.apiKey, acc.apiSecret, acc.Name, trade.p, trade.S);
+        console.log(`${res}`);
         console.log(`Ordem cancelada na conta ${acc.Name}`);
     });
 
@@ -174,7 +183,7 @@ async function handleNewTradeFutures(trade) {
         return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
     };
 
-    const promises = accounts.map(handleAccount);
+    const promises = accountsFutures.map(handleAccount);
     await handlePromise(promises);
 }
 
@@ -195,7 +204,7 @@ async function handleNewTradeFutures(trade) {
 
 async function handleChangeLeverage(trade) {
     AlavancagemMaster = trade.l;
-    const pr = accounts.map(async (acc) => {
+    const pr = accountsFutures.map(async (acc) => {
         const data = {
             symbol: trade.s,
             leverage: trade.l
@@ -208,7 +217,7 @@ async function handleChangeLeverage(trade) {
 
 async function handleChangeMarginType(trade) {
     const mt = trade.P[0].mt === 'cross' ? 'CROSSED' : 'ISOLATED';
-    const pr = accounts.map(async (acc) => {
+    const pr = accountsFutures.map(async (acc) => {
         const data = {
             symbol: trade.P[0].s,
             marginType: mt,
