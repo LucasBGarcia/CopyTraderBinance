@@ -199,8 +199,6 @@ async function CancelOrderFutures(data, apiKey, apiSecret, name, quantidade, typ
             url: `${apiUrlFutures}/v1/order${qs}`,
             headers: { 'X-MBX-APIKEY': apiKey }
         })
-        console.log('cancelOrder Futures result', result)
-        console.log('cancelOrder Futures data', data)
         console.log(`SUCESSO: Conta ${name} | Ordem deletada: Conta ${name} | Ordem: ${type} ${data.symbol} Preço: ${quantidade} `)
         return result
     } catch (err) {

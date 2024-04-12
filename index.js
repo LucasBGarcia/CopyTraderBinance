@@ -93,7 +93,7 @@ async function start() {
         } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
             console.log('ta caindo no terceiro')
             await handleCancelTradeFutures(trade.o);
-        } if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
+        } if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
             console.log('ta caindo no quarto')
             await handleCanceledOrdersFutures(trade.o);
         }

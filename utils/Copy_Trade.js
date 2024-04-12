@@ -98,7 +98,7 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
     if (trade.p && parseFloat(trade.p)) {
         data.price = trade.p;
     }
-    if (trade.f && trade.f !== "GTC") {
+    if ((trade.f && trade.f !== "GTC") || trade.o === 'LIMIT') {
         data.timeInForce = trade.f;
     }
     if (trade.sp && parseFloat(trade.sp)) {
