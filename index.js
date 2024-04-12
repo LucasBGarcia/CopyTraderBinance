@@ -35,9 +35,7 @@ async function loadAccounts() {
         i++;
     }
     console.log(`${i - 1} copy accounts loaded`);
-
     await ShowBalances()
-
     return listenKey;
 }
 
