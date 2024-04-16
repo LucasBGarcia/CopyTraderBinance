@@ -28,20 +28,9 @@ async function InfoAccountBalance(apiSecret, apiKey) {
                 'X-MBX-APIKEY': apiKey
             },
         });
-
-        const resultFutures = await axios({
-            method: 'GET',
-            url: `${apiUrlFutures}/v2/balance?${queryString}&signature=${signature}`,
-            headers: {
-                'X-MBX-APIKEY': apiKey
-            },
-        });
-
         const filterBalance = result.data.balances.filter(balance => balance.asset === 'USDT')
-        const filterBalanceFutures = resultFutures.data.filter(balance => balance.asset === 'USDT')
         const res = {
             valorSpot: filterBalance[0].free,
-            valorFutures: filterBalanceFutures[0].availableBalance
         }
 
         return res
@@ -69,11 +58,14 @@ async function InfoAccountBalanceFuture(apiSecret, apiKey) {
                 'X-MBX-APIKEY': apiKey
             },
         });
-        const filterBalance = resultFutures.data.filter(balance => balance.asset === 'USDT')
-        // console.log('resultFutures', resultFutures)
-        return filterBalance[0].balance
+
+        const filterBalanceFutures = resultFutures.data.filter(balance => balance.asset === 'USDT')
+        const res = {
+            valorFutures: filterBalanceFutures[0].availableBalance
+        }
+
+        return res
     } catch (err) {
-        console.log('error', err)
         console.error(err.response ? err.response.data : err.message);
     }
 }

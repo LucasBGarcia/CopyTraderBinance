@@ -42,7 +42,11 @@ async function loadAccounts() {
 async function ShowBalances() {
     await Promise.all(accounts.map(async (account) => {
         const balance = await api.InfoAccountBalance(account.apiSecret, account.apiKey);
-        console.log(`${account.Name} USDT SPOT ${balance.valorSpot} | USDT FUTURES ${balance.valorFutures}`);
+        console.log(`${account.Name} USDT SPOT ${balance.valorSpot}`);
+    }));
+    await Promise.all(accountsFutures.map(async (account) => {
+        const balance = await api.InfoAccountBalanceFuture(account.apiSecret, account.apiKey);
+        console.log(`${account.Name} USDT FUTURES ${balance.valorFutures}`);
     }));
 }
 
@@ -52,8 +56,9 @@ let oldOrders = {}
 async function start() {
     console.clear();
     const valoresIniciais = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
+    const valoresIniciaisF = await api.InfoAccountBalanceFuture(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
     ValorTotalMasterSpot = valoresIniciais.valorSpot;
-    ValorTotalMasterFuturos = valoresIniciais.valorFutures;
+    ValorTotalMasterFuturos = valoresIniciaisF.valorFutures;
 
     const listenKey = await loadAccounts();
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
