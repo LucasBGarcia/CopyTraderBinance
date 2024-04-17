@@ -73,12 +73,12 @@ async function copyTrade(trade, apiSecret, apiKey, apiName, PorcentagemMaster) {
     return data;
 }
 
-async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, PorcentagemMaster, valorAtualFuturos) {
+async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, PorcentagemMaster, valorAtualFuturos, alavancagemMaster) {
     let ValorEntrada;
-
+    console.log('trade', trade)
     const valorAtual = !valorAtualFuturos ? await api.GetPriceFutures(trade.s) : valorAtualFuturos
     if (isNewOrder.openPosition) {
-        const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey);
+        const ValorCarteiraCliente = await api.InfoAccountBalanceFuture(apiSecret, apiKey);
         ValorEntrada = Calcula_procentagem.calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, valorAtual, apiName);
     }
     const data = {
@@ -88,6 +88,10 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
     };
     // if (trade.q && parseFloat(trade.q)) {
     if (isNewOrder.openPosition) {
+        let valorFinalEntrada =ValorEntrada* alavancagemMaster
+        console.log("ValorEntrada",ValorEntrada)
+        console.log("alavancagemMaster",alavancagemMaster)
+        console.log("valorFinalEntrada",valorFinalEntrada)
         data.quantity = Math.abs(ValorEntrada).toString();
     } else {
         const positivo = Math.abs(Number(isNewOrder.positionAmt))
