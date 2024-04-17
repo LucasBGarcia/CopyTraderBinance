@@ -11,12 +11,16 @@ function calcularValorPorPorcentagem(valorCarteira, porcentagem, tradeq, valorAt
 }
 
 async function tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster) {
-    const ValueAfterTrade = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
+    const ValueAfterTrade = await api.InfoAccountBalanceFuture(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
     const valorgasto = ValorTotalMasterFuturos - ValueAfterTrade.valorFutures;
     // const valorgasto = trade.wb - trade.cw;
     const porcentagem = (valorgasto / ValorTotalMasterFuturos) * 100;
     // console.log('trade porcentagem ', trade);
     // console.log('trade porcentagem retorno', porcentagem.toFixed(2));
+    console.log('ValorTotalMasterFuturos', ValorTotalMasterFuturos);
+    console.log('ValueAfterTrade.valorFutures', ValueAfterTrade.valorFutures);
+    console.log('valorgasto', valorgasto);
+    console.log('porcentagem', porcentagem);
     const porcentagemFinal = porcentagem.toFixed(2) * AlavancagemMaster;
     return porcentagemFinal.toFixed(2);
 }

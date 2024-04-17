@@ -78,7 +78,7 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
 
     const valorAtual = !valorAtualFuturos ? await api.GetPriceFutures(trade.s) : valorAtualFuturos
     if (isNewOrder.openPosition) {
-        const ValorCarteiraCliente = await api.InfoAccountBalance(apiSecret, apiKey);
+        const ValorCarteiraCliente = await api.InfoAccountBalanceFuture(apiSecret, apiKey);
         ValorEntrada = Calcula_procentagem.calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, valorAtual, apiName);
     }
     const data = {
