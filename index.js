@@ -182,7 +182,7 @@ async function handleNewOrders(trade) {
 async function handleNewTradeFutures(trade) {
     const handleAccount = async (acc) => {
         const response = await api.GetOrderFutures(trade, acc.apiKey, acc.apiSecret, acc.Name);
-        const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster, valorAtualFuturos);
+        const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster, valorAtualFuturos, AlavancagemMaster);
         return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
     };
 
