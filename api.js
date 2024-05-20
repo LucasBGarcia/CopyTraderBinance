@@ -29,6 +29,8 @@ async function InfoAccountBalance(apiSecret, apiKey) {
             },
         });
         const filterBalance = result.data.balances.filter(balance => balance.asset === 'USDT')
+        // const filterBalanceBTC = result.data.balances.filter(balance => balance.asset === 'BTC')
+        // console.log(filterBalanceBTC)
         const res = {
             valorSpot: filterBalance[0].free,
         }
@@ -73,6 +75,8 @@ async function InfoAccountBalanceFuture(apiSecret, apiKey) {
 async function InfoAccount(apiSecret, apiKey) {
     try {
         const timestamp = Date.now();
+        console.log('apisecret recebida', apiSecret)
+        console.log('apiKey recebida', apiKey)
 
         const queryString = `timestamp=${timestamp}`;
 
@@ -85,18 +89,9 @@ async function InfoAccount(apiSecret, apiKey) {
                 'X-MBX-APIKEY': apiKey,
             },
         });
-        const resultFutures = await axios({
-            method: 'GET',
-            url: `${apiUrlFutures}/v2/balance?${queryString}&signature=${signature}`,
-            headers: {
-                'X-MBX-APIKEY': apiKey
-            },
-        });
-        // console.log(resultFutures.data)
+   
         const res = {
-            spot: result.data.balances,
-            futures: resultFutures.data
-        }
+            spot: result.data.balances        }
         return res
     } catch (err) {
         console.error(err.response ? err.response.data : err.message);
@@ -144,6 +139,33 @@ async function connectAccountFuture() {
         return result.data;
     } catch (err) {
         console.error(err.response ? err.response : err);
+    }
+}
+
+async function CancelAllOrders(data, apiKey, apiSecret, name, quantidade, type) {
+    let infos = {
+        symbol: 'BTCUSDT',
+        timestamp: Date.now(),
+        recvWindow: 60000,
+    }
+    const signature = crypto.createHmac('sha256', 'SxiKw8iguQj73fU2YgEkh8ukgZqtpgGMzcN61ASwhElaAgosMrKOlx3vHgyTebXp').update(`${new URLSearchParams(infos)}`).digest('hex');
+    // console.log('signature', signature)
+    const qs = `?${new URLSearchParams({ ...infos, signature })}`
+    try {
+        const result = await axios({
+            method: 'DELETE',
+            url: `${apiUrl}/v3/openOrders${qs}`,
+            headers: { 'X-MBX-APIKEY': '6p6A9X4sY23SggxyE1T5RQ6xI6lBcJQtbitKqwdCmzpSIYPL94uKCYiTi823VxNk' }
+        })
+        // console.log('newOrder result', result)
+        console.log(`SUCESSO: ${result} `)
+        return result
+    } catch (err) {
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
     }
 }
 
@@ -453,5 +475,6 @@ module.exports = {
     ChangeMarginType,
     GetOrderFutures,
     CancelOrderFutures,
-    GetPriceFutures
+    GetPriceFutures,
+    CancelAllOrders
 }

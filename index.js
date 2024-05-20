@@ -25,13 +25,7 @@ async function loadAccounts() {
             apiKey: process.env[`TRADER${i}_API_KEY`],
             apiSecret: process.env[`TRADER${i}_API_SECRET`]
         });
-        if (process.env[`TRADER${i}_FUTURES`] === 'true') {
-            accountsFutures.push({
-                Name: process.env[`TRADER${i}_NAME`],
-                apiKey: process.env[`TRADER${i}_API_KEY`],
-                apiSecret: process.env[`TRADER${i}_API_SECRET`]
-            });
-        }
+ 
         i++;
     }
     console.log(`${i - 1} copy accounts loaded`);
@@ -44,10 +38,7 @@ async function ShowBalances() {
         const balance = await api.InfoAccountBalance(account.apiSecret, account.apiKey);
         console.log(`${account.Name} USDT SPOT ${balance.valorSpot}`);
     }));
-    await Promise.all(accountsFutures.map(async (account) => {
-        const balance = await api.InfoAccountBalanceFuture(account.apiSecret, account.apiKey);
-        console.log(`${account.Name} USDT FUTURES ${balance.valorFutures}`);
-    }));
+
 }
 
 let oldTrade = false
@@ -56,60 +47,11 @@ let oldOrders = {}
 async function start() {
     console.clear();
     const valoresIniciais = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
-    const valoresIniciaisF = await api.InfoAccountBalanceFuture(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
     ValorTotalMasterSpot = valoresIniciais.valorSpot;
-    ValorTotalMasterFuturos = valoresIniciaisF.valorFutures;
 
     const listenKey = await loadAccounts();
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
-    const wsFuture = new WebSocket(`${process.env.BINANCE_WS_URL_FUTURE}/${listenKey.listenKeyFutures.listenKey}`);
-
-    wsFuture.onmessage = async (event) => {
-        const trade = JSON.parse(event.data);
-        console.log('Efetuando trades no futuros, aguarde...')
-        if (trade.o && Number(trade.o.L) > 0) {
-            valorAtualFuturos = Number(trade.o.L);
-        }
-        if (trade.a && trade.a.m === 'MARGIN_TYPE_CHANGE') {
-            await handleChangeMarginType(trade.a);
-        }
-        if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
-            await handleChangeLeverage(trade.ac);
-        }
-        // if (trade.a && trade.a.B[0]) {
-        PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
-        // }
-
-        // await VerificaOldOrder(trade)
-        if (trade.e === 'ORDER_TRADE_UPDATE') {
-            dados.ordens.map((ordem) => {
-                if (ordem === trade.o.i) {
-                    oldTrade = true
-                }
-            })
-        }
-        if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
-            await handleNewTradeFutures(trade.o);
-            oldTrade = false
-        } else if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
-            await handleNewTradeFutures(trade.o);
-        } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
-            await handleNewTradeFutures(trade.o);
-        } if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
-            await handleCanceledOrdersFutures(trade.o);
-        }
-        // if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'FILLED') {
-        //     console.log('ta caindo no quinto')
-        //     dados.ordens.push(trade.o.i);
-        //     localStorage.setItem('dados.json', JSON.stringify(dados));
-        // }
-        // if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i] && trade.o.X === 'NEW' && valorAtualFuturos) {
-        //     console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
-        //     oldOrders[trade.i] = true;
-        //     await handleNewOrdersFutures(trade.o);
-        // }
-
-    };
+  
 
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
