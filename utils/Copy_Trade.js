@@ -24,7 +24,7 @@ function buscaValor(symbol) {
 
 async function PegaMoedar(apiSecret, moeda, apiKey) {
     const ValorCarteiraCliente = await api.InfoAccount(apiSecret, apiKey);
-    const moedaSplitCliente = moeda.split('U');
+    const moedaSplitCliente = moeda.split('USD');
     const moedaCliente = ValorCarteiraCliente.spot.filter(pares => pares.asset === moedaSplitCliente[0]);
     return (moedaCliente);
 }

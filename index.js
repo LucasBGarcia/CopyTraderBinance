@@ -25,7 +25,7 @@ async function loadAccounts() {
             apiKey: process.env[`TRADER${i}_API_KEY`],
             apiSecret: process.env[`TRADER${i}_API_SECRET`]
         });
- 
+
         i++;
     }
     console.log(`${i - 1} copy accounts loaded`);
@@ -51,15 +51,17 @@ async function start() {
 
     const listenKey = await loadAccounts();
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
-  
+
 
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
         console.log('Efetuando trades em spot, aguarde...')
 
-        if (trade.e === 'executionReport' && trade.o === 'LIMIT' && trade.x === 'CANCELED') {
-            oldOrders[trade.i] = true;
-            await handleCanceledOrders(trade);
+        if (trade.e === 'executionReport' && trade.x === 'CANCELED') {
+            if (trade.o === 'LIMIT' || trade.o === 'STOP_LOSS_LIMIT' || trade.o === 'TAKE_PROFIT_LIMIT') {
+                oldOrders[trade.i] = true;
+                await handleCanceledOrders(trade);
+            }
         }
 
         if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
