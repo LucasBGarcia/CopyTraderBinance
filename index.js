@@ -55,16 +55,18 @@ async function start() {
 
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
-        console.log('Efetuando trades em spot, aguarde...')
-
+        console.log('Verificando condições de trade, aguarde...')
+        
         if (trade.e === 'executionReport' && trade.x === 'CANCELED') {
             if (trade.o === 'LIMIT' || trade.o === 'STOP_LOSS_LIMIT' || trade.o === 'TAKE_PROFIT_LIMIT') {
+                console.log('Efetuando trades em spot, aguarde...')
                 oldOrders[trade.i] = true;
                 await handleCanceledOrders(trade);
             }
         }
 
         if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
+            console.log('Efetuando trades em spot, aguarde...')
             oldOrders[trade.i] = true;
             PorcentagemMaster = await Calcula_procentagem.tradePorcentageMaster(ValorTotalMasterSpot);
             await handleNewOrders(trade);
