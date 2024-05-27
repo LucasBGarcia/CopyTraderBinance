@@ -385,7 +385,7 @@ async function newOrderFutures(data, apiKey, apiSecret, name) {
         .digest('hex');
 
     const qs = `?${new URLSearchParams({ ...data, signature })}`;
-
+    console.log('data no new order', data)
     try {
         const result = await axios({
             method: "POST",

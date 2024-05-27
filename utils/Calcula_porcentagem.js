@@ -15,8 +15,8 @@ async function tradePorcentageMasterFuturos(ValorTotalMasterFuturos, Alavancagem
     const valorgasto = ValorTotalMasterFuturos - ValueAfterTrade.valorFutures;
     // const valorgasto = trade.wb - trade.cw;
     const porcentagem = (valorgasto / ValorTotalMasterFuturos) * 100;
-
     const porcentagemFinal = porcentagem;
+
     // const porcentagemFinal = porcentagem.toFixed(2) * AlavancagemMaster;
     return porcentagemFinal.toFixed(2);
 }
