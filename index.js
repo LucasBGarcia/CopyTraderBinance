@@ -11,7 +11,7 @@ const accountsFutures = [];
 let ValorTotalMasterSpot;
 let ValorTotalMasterFuturos;
 let PorcentagemMaster;
-let AlavancagemMaster = 2;
+let AlavancagemMaster = 1;
 let valorAtualFuturos;
 let dadosJSON = localStorage.getItem('dados.json')
 let dados = JSON.parse(dadosJSON)
@@ -64,71 +64,131 @@ async function start() {
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
     const wsFuture = new WebSocket(`${process.env.BINANCE_WS_URL_FUTURE}/${listenKey.listenKeyFutures.listenKey}`);
 
-    wsFuture.onmessage = async (event) => {
-        const trade = JSON.parse(event.data);
-        console.log('Efetuando trades no futuros, aguarde...')
-        if (trade.o && Number(trade.o.L) > 0) {
-            valorAtualFuturos = Number(trade.o.L);
-        }
-        if (trade.a && trade.a.m === 'MARGIN_TYPE_CHANGE') {
-            await handleChangeMarginType(trade.a);
-        }
-        if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
-            await handleChangeLeverage(trade.ac);
-        }
-        // if (trade.a && trade.a.B[0]) {
-        PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
-        // }
+    return new Promise((resolve) => {
+        wsFuture.onmessage = async (event) => {
+            const trade = JSON.parse(event.data);
+            console.log('Efetuando trades no futuros, aguarde...');
+            if (trade.o && Number(trade.o.L) > 0) {
+                valorAtualFuturos = Number(trade.o.L);
+            }
+            if (trade.a && trade.a.m === 'MARGIN_TYPE_CHANGE') {
+                await handleChangeMarginType(trade.a);
+            }
+            if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
+                await handleChangeLeverage(trade.ac);
+            }
+            PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
+            if (trade.e === 'ORDER_TRADE_UPDATE') {
+                dados.ordens.map((ordem) => {
+                    if (ordem === trade.o.i) {
+                        oldTrade = true;
+                    }
+                });
+            }
+            if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
+                await handleNewTradeFutures(trade.o);
+                oldTrade = false;
+                resolve(); // Resolva a promessa quando uma mensagem for recebida
+            } else if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
+                await handleNewTradeFutures(trade.o);
+                resolve(); // Resolva a promessa quando uma mensagem for recebida
+            } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
+                await handleNewTradeFutures(trade.o);
+                resolve(); // Resolva a promessa quando uma mensagem for recebida
+            } if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
+                await handleCanceledOrdersFutures(trade.o);
+                resolve(); // Resolva a promessa quando uma mensagem for recebida
+            }
+        };
 
-        // await VerificaOldOrder(trade)
-        if (trade.e === 'ORDER_TRADE_UPDATE') {
-            dados.ordens.map((ordem) => {
-                if (ordem === trade.o.i) {
-                    oldTrade = true
-                }
-            })
-        }
-        if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
-            await handleNewTradeFutures(trade.o);
-            oldTrade = false
-        } else if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
-            await handleNewTradeFutures(trade.o);
-        } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
-            await handleNewTradeFutures(trade.o);
-        } if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
-            await handleCanceledOrdersFutures(trade.o);
-        }
-        // if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'FILLED') {
-        //     console.log('ta caindo no quinto')
-        //     dados.ordens.push(trade.o.i);
-        //     localStorage.setItem('dados.json', JSON.stringify(dados));
-        // }
-        // if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i] && trade.o.X === 'NEW' && valorAtualFuturos) {
-        //     console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
-        //     oldOrders[trade.i] = true;
-        //     await handleNewOrdersFutures(trade.o);
-        // }
+        ws.onmessage = async (event) => {
+            const trade = JSON.parse(event.data);
+            console.log('Efetuando trades em spot, aguarde...');
 
-    };
+            if (trade.e === 'executionReport' && trade.o === 'LIMIT' && trade.x === 'CANCELED') {
+                oldOrders[trade.i] = true;
+                await handleCanceledOrders(trade);
+                resolve(); // Resolva a promessa quando uma mensagem for recebida
+            }
 
-    ws.onmessage = async (event) => {
-        const trade = JSON.parse(event.data);
-        console.log('Efetuando trades em spot, aguarde...')
+            if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
+                oldOrders[trade.i] = true;
+                PorcentagemMaster = await Calcula_procentagem.tradePorcentageMaster(ValorTotalMasterSpot);
+                await handleNewOrders(trade);
+                resolve(); // Resolva a promessa quando uma mensagem for recebida
 
-        if (trade.e === 'executionReport' && trade.o === 'LIMIT' && trade.x === 'CANCELED') {
-            oldOrders[trade.i] = true;
-            await handleCanceledOrders(trade);
-        }
+            }
+        };
 
-        if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
-            oldOrders[trade.i] = true;
-            PorcentagemMaster = await Calcula_procentagem.tradePorcentageMaster(ValorTotalMasterSpot);
-            await handleNewOrders(trade);
-        }
-    };
+        console.log('Esperando trades...');
+        setInterval(api.connectAccount, 59 * 60 * 1000);
+    });
 
-    console.log('waiting trades...');
-    setInterval(api.connectAccount, 59 * 60 * 1000);
+    //    wsFuture.onmessage = async (event) => {
+    //         const trade = JSON.parse(event.data);
+    //         console.log('Efetuando trades no futuros, aguarde...')
+    //         if (trade.o && Number(trade.o.L) > 0) {
+    //             valorAtualFuturos = Number(trade.o.L);
+    //         }
+    //         if (trade.a && trade.a.m === 'MARGIN_TYPE_CHANGE') {
+    //             await handleChangeMarginType(trade.a);
+    //         }
+    //         if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
+    //             await handleChangeLeverage(trade.ac);
+    //         }
+    //         // if (trade.a && trade.a.B[0]) {
+    //         PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
+    //         // }
+
+    //         // await VerificaOldOrder(trade)
+    //         if (trade.e === 'ORDER_TRADE_UPDATE') {
+    //             dados.ordens.map((ordem) => {
+    //                 if (ordem === trade.o.i) {
+    //                     oldTrade = true
+    //                 }
+    //             })
+    //         }
+    //         if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
+    //             await handleNewTradeFutures(trade.o);
+    //             oldTrade = false
+    //         } else if (trade.e === "ORDER_TRADE_UPDATE" && !oldTrade && (trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
+    //             await handleNewTradeFutures(trade.o);
+    //         } else if (trade.e === "ORDER_TRADE_UPDATE" && oldTrade && trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
+    //             await handleNewTradeFutures(trade.o);
+    //         } if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
+    //             await handleCanceledOrdersFutures(trade.o);
+    //         }
+    //         // if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.X === 'FILLED') {
+    //         //     console.log('ta caindo no quinto')
+    //         //     dados.ordens.push(trade.o.i);
+    //         //     localStorage.setItem('dados.json', JSON.stringify(dados));
+    //         // }
+    //         // if (trade.e === "ORDER_TRADE_UPDATE" && !oldOrders[trade.i] && trade.o.X === 'NEW' && valorAtualFuturos) {
+    //         //     console.log("ta caindo no primeiro ORDER_TRADE_UPDATE");
+    //         //     oldOrders[trade.i] = true;
+    //         //     await handleNewOrdersFutures(trade.o);
+    //         // }
+
+    //     };
+
+    //     ws.onmessage = async (event) => {
+    //         const trade = JSON.parse(event.data);
+    //         console.log('Efetuando trades em spot, aguarde...')
+
+    //         if (trade.e === 'executionReport' && trade.o === 'LIMIT' && trade.x === 'CANCELED') {
+    //             oldOrders[trade.i] = true;
+    //             await handleCanceledOrders(trade);
+    //         }
+
+    //         if (trade.e === 'executionReport' && !oldOrders[trade.i]) {
+    //             oldOrders[trade.i] = true;
+    //             PorcentagemMaster = await Calcula_procentagem.tradePorcentageMaster(ValorTotalMasterSpot);
+    //             await handleNewOrders(trade);
+    //         }
+    //     };
+
+    // console.log('waiting trades...');
+    // setInterval(api.connectAccount, 59 * 60 * 1000);
 }
 
 async function handleCanceledOrders(trade) {
@@ -243,4 +303,46 @@ async function handlePromise(pr) {
     }
 }
 
-start();
+async function CancelAllOrdersSpot() {
+    const symbol = readline.question("De qual mooeda quer cancelar? ");
+    const pr = accounts.map(async (acc) => {
+        const data = await api.CancelAllOrders(symbol, acc.apiSecret, acc.apiKey, acc.Name);
+        console.log('DATA', data)
+    });
+
+    await handlePromise(pr);
+}
+
+const readline = require('readline-sync');
+function mostrarMenu() {
+    console.log("Escolha uma opção:");
+    console.log("1. Start Bot");
+    console.log("2. Cancelar todas as ordens SPOT");
+    console.log("3. Sair");
+}
+
+
+async function executarMenu() {
+    let escolha;
+    while (escolha !== 3) {
+        mostrarMenu();
+        escolha = parseInt(readline.question("Digite o número da sua escolha: "));
+
+        switch (escolha) {
+            case 1:
+                await start();
+                break;
+            case 2:
+                await CancelAllOrdersSpot()
+                break;
+            case 3:
+                console.log("Saindo do menu. Até logo!");
+                break;
+            default:
+                console.log("Escolha inválida. Por favor, tente novamente.");
+        }
+    }
+}
+
+// Chamar a função principal para iniciar o menu
+executarMenu();

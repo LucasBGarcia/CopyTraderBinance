@@ -438,6 +438,35 @@ async function ChangeMarginType(data, apiKey, apiSecret, name) {
     }
 }
 
+async function CancelAllOrders(data, apiSecret, apiKey, name) {
+    const par = data.toUpperCase()+'USDT'
+    let infos = {
+        symbol: par,
+        timestamp: Date.now(),
+        recvWindow: 60000,
+    }
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
+    // console.log('signature', signature)
+    const qs = `?${new URLSearchParams({ ...infos, signature })}`
+    try {
+        const result = await axios({
+            method: 'DELETE',
+            url: `${apiUrl}/v3/openOrders${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        })
+        // console.log('newOrder result', result)
+        console.log(`SUCESSO: ${result} `)
+        return result
+    } catch (err) {
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
+    }
+}
+
+
 module.exports = {
     connectAccount,
     newOrder,
@@ -453,5 +482,6 @@ module.exports = {
     ChangeMarginType,
     GetOrderFutures,
     CancelOrderFutures,
-    GetPriceFutures
+    GetPriceFutures,
+    CancelAllOrders
 }
