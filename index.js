@@ -1,6 +1,7 @@
 require("dotenv").config();
 const WebSocket = require('ws');
 const api = require("./api");
+const Transferencia = require("./utils/Transferencia")
 const Calcula_procentagem = require("./utils/Calcula_porcentagem")
 const Copy_Trade = require("./utils/Copy_Trade")
 var LocalStorage = require('node-localstorage').LocalStorage
@@ -66,6 +67,9 @@ async function start() {
 
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
+        // console.log('trade FUTUROS', trade)
+        // console.log('trade FUTUROS', trade.a)
+
         console.log('Efetuando trades no futuros, aguarde...');
         if (trade.o && Number(trade.o.L) > 0) {
             valorAtualFuturos = Number(trade.o.L);
@@ -88,7 +92,7 @@ async function start() {
         if (trade.e === "ORDER_TRADE_UPDATE") {
             if (!oldTrade) {
                 if ((trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
-                   console.log('trade', trade)
+                    console.log('trade', trade)
                     await handleNewTradeFutures(trade.o);
                     oldTrade = false;
                 }
@@ -108,7 +112,13 @@ async function start() {
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
         console.log('Verificando condições de trade, aguarde...')
-
+        if (trade.e === 'balanceUpdate') {
+            const porcentagemMaster = (trade.d / ValorTotalMasterFuturos) * 100;
+            accounts.map(async (acc) => {
+                const result = await Transferencia.Futuros_para_spot(acc.apiKey, acc.apiSecret, acc.Name, porcentagemMaster, trade.d, trade.a)
+                // console.log('result', result)
+            })
+        }
         if (trade.e === 'executionReport' && trade.x === 'CANCELED') {
             if (trade.o === 'LIMIT' || trade.o === 'STOP_LOSS_LIMIT' || trade.o === 'TAKE_PROFIT_LIMIT') {
                 console.log('Efetuando trades em spot, aguarde...')

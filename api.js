@@ -3,9 +3,11 @@ const crypto = require('crypto');
 
 const apiUrl = process.env.BINANCE_API_URL
 const apiUrlFutures = process.env.BINANCE_API_URL_FUTURES
+const apiUrlFuturesTransfer = process.env.BINANCE_API_URL_FUTURES_TRANSFER
 
 const apiKey = process.env.TRADER0_API_KEY;
 const apiSecret = process.env.TRADER0_API_SECRET;
+
 
 
 async function InfoAccountBalance(apiSecret, apiKey) {
@@ -89,9 +91,10 @@ async function InfoAccount(apiSecret, apiKey) {
                 'X-MBX-APIKEY': apiKey,
             },
         });
-   
+
         const res = {
-            spot: result.data.balances        }
+            spot: result.data.balances
+        }
         return res
     } catch (err) {
         console.error(err.response ? err.response.data : err.message);
@@ -460,6 +463,31 @@ async function ChangeMarginType(data, apiKey, apiSecret, name) {
     }
 }
 
+async function TransferFuturesToSpot(data, apiKey, apiSecret, name) {
+    data.timestamp = Date.now();
+    data.recvWindow = 60000;
+    console.log('data', data)
+    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(data)}`).digest('hex');
+    // console.log('signature', signature)
+    const qs = `?${new URLSearchParams({ ...data, signature })}`
+    try {
+        const result = await axios({
+            method: 'POST',
+            url: `${apiUrlFuturesTransfer}/v1/asset/transfer${qs}`,
+            headers: { 'X-MBX-APIKEY': apiKey }
+        })
+        // console.log('newOrder result', result)
+        console.log(`SUCESSO: Conta ${name} | Transferencia: ${data.asset} ${data.amount} FUTUROS -> SPOT`)
+        return result.data
+    } catch (err) {
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        console.log(`| FALHOU: Conta ${name} | Transferencia: ${data.asset} ${data.amount} FUTUROS -> SPOT  |`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
+    }
+}
+
 module.exports = {
     connectAccount,
     newOrder,
@@ -476,5 +504,6 @@ module.exports = {
     GetOrderFutures,
     CancelOrderFutures,
     GetPriceFutures,
-    CancelAllOrders
+    CancelAllOrders,
+    TransferFuturesToSpot
 }

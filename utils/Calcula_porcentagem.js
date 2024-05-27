@@ -10,6 +10,12 @@ function calcularValorPorPorcentagem(valorCarteira, porcentagem, tradeq, valorAt
     return result.toFixed(valor);
 }
 
+function calcularValorPorPorcentagemTransferencia(valorCarteira, porcentagemMaster, apiName) {
+    const valorReferentePorcentagem = (porcentagemMaster / 100) * valorCarteira;
+    console.log(`${apiName} - Valor transferido: USDT ${valorReferentePorcentagem.toFixed(3)}`);
+    return valorReferentePorcentagem.toFixed(3);
+}
+
 async function tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster) {
     const ValueAfterTrade = await api.InfoAccountBalanceFuture(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
     const valorgasto = ValorTotalMasterFuturos - ValueAfterTrade.valorFutures;
@@ -32,5 +38,6 @@ async function tradePorcentageMaster(ValorTotalMasterSpot) {
 module.exports = {
     calcularValorPorPorcentagem,
     tradePorcentageMasterFuturos,
-    tradePorcentageMaster
+    tradePorcentageMaster,
+    calcularValorPorPorcentagemTransferencia
 }
