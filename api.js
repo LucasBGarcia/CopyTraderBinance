@@ -378,7 +378,6 @@ async function newOrder(data, apiKey, apiSecret, name) {
 async function newOrderFutures(data, apiKey, apiSecret, name) {
     if (!apiKey || !apiSecret)
         throw new Error('Preencha corretamente sua API KEY e SECRET KEY');
-
     data.timestamp = Date.now();
     data.recvWindow = 60000;//máximo permitido, default 5000
     // console.log('data new order futures', data)
@@ -388,7 +387,6 @@ async function newOrderFutures(data, apiKey, apiSecret, name) {
         .digest('hex');
 
     const qs = `?${new URLSearchParams({ ...data, signature })}`;
-    console.log('data no new order', data)
     try {
         const result = await axios({
             method: "POST",

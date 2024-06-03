@@ -117,7 +117,6 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
     }
     dados.ordens.push(trade.i);
     localStorage.setItem('dados.json', JSON.stringify(dados));
-    console.log('DATA', data)
     return data;
 }
 

@@ -96,7 +96,6 @@ async function start() {
         if (trade.e === "ORDER_TRADE_UPDATE") {
             if (!oldTrade) {
                 if ((trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
-                    console.log('trade', trade)
                     await handleNewTradeFutures(trade.o);
                     oldTrade = false;
                 }
