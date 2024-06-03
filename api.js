@@ -466,9 +466,7 @@ async function ChangeMarginType(data, apiKey, apiSecret, name) {
 async function TransferFuturesToSpot(data, apiKey, apiSecret, name) {
     data.timestamp = Date.now();
     data.recvWindow = 60000;
-    console.log('data', data)
     const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(data)}`).digest('hex');
-    // console.log('signature', signature)
     const qs = `?${new URLSearchParams({ ...data, signature })}`
     try {
         const result = await axios({
@@ -477,7 +475,12 @@ async function TransferFuturesToSpot(data, apiKey, apiSecret, name) {
             headers: { 'X-MBX-APIKEY': apiKey }
         })
         // console.log('newOrder result', result)
-        console.log(`SUCESSO: Conta ${name} | Transferencia: ${data.asset} ${data.amount} FUTUROS -> SPOT`)
+        if (data.type === 'UMFUTURE_MAIN') {
+            console.log(`SUCESSO: Conta ${name} | Transferencia: ${data.asset} ${data.amount} FUTUROS -> SPOT`)
+        } else if (data.type === 'MAIN_UMFUTURE') {
+            console.log(`SUCESSO: Conta ${name} | Transferencia: ${data.asset} ${data.amount} SPOT -> FUTUROS`)
+
+        }
         return result.data
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
@@ -487,6 +490,7 @@ async function TransferFuturesToSpot(data, apiKey, apiSecret, name) {
         // console.error(err.respose ? err.respose : err.message)
     }
 }
+
 
 module.exports = {
     connectAccount,

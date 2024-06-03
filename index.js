@@ -54,12 +54,18 @@ async function ShowBalances() {
 let oldTrade = false
 let oldOrders = {}
 
-async function start() {
-    console.clear();
+async function loadBalanceMaster() {
     const valoresIniciais = await api.InfoAccountBalance(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
     const valoresIniciaisF = await api.InfoAccountBalanceFuture(process.env.TRADER0_API_SECRET, process.env.TRADER0_API_KEY);
     ValorTotalMasterSpot = valoresIniciais.valorSpot;
     ValorTotalMasterFuturos = valoresIniciaisF.valorFutures;
+    console.log(`MASTER USDT SPOT ${valoresIniciais.valorSpot}`);
+    console.log(`MASTER USDT FUTURES ${valoresIniciaisF.valorFutures}`);
+}
+
+async function start() {
+    console.clear();
+    await loadBalanceMaster()
 
     const listenKey = await loadAccounts();
     const ws = new WebSocket(`${process.env.BINANCE_WS_URL}/${listenKey.listenKeySpot.listenKey}`);
@@ -67,8 +73,6 @@ async function start() {
 
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
-        // console.log('trade FUTUROS', trade)
-        // console.log('trade FUTUROS', trade.a)
 
         console.log('Efetuando trades no futuros, aguarde...');
         if (trade.o && Number(trade.o.L) > 0) {
@@ -112,12 +116,22 @@ async function start() {
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
         console.log('Verificando condições de trade, aguarde...')
-        if (trade.e === 'balanceUpdate') {
+
+        if (trade.e === 'balanceUpdate' && Number(trade.d) > 0) {
             const porcentagemMaster = (trade.d / ValorTotalMasterFuturos) * 100;
-            accounts.map(async (acc) => {
-                const result = await Transferencia.Futuros_para_spot(acc.apiKey, acc.apiSecret, acc.Name, porcentagemMaster, trade.d, trade.a)
-                // console.log('result', result)
+            const pr = accounts.map(async (acc) => {
+                await Transferencia.Futuros_para_spot(acc.apiKey, acc.apiSecret, acc.Name, porcentagemMaster, trade.a)
+                await loadBalanceMaster()
             })
+            await handlePromise(pr)
+
+        } else if (trade.e === 'balanceUpdate' && Number(trade.d) < 0) {
+            const porcentagemMaster = (Math.abs(Number(trade.d)) / ValorTotalMasterSpot) * 100;
+            const pr = accounts.map(async (acc) => {
+                await Transferencia.Spot_para_futuros(acc.apiKey, acc.apiSecret, acc.Name, porcentagemMaster, trade.a)
+                await loadBalanceMaster()
+            })
+            await handlePromise(pr)
         }
         if (trade.e === 'executionReport' && trade.x === 'CANCELED') {
             if (trade.o === 'LIMIT' || trade.o === 'STOP_LOSS_LIMIT' || trade.o === 'TAKE_PROFIT_LIMIT') {
