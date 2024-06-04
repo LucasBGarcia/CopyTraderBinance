@@ -73,8 +73,8 @@ async function start() {
 
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
-
-        console.log('Efetuando trades no futuros, aguarde...');
+        console.log('TRADE', trade)
+         console.log('Efetuando trades no futuros, aguarde...');
         if (trade.o && Number(trade.o.L) > 0) {
             valorAtualFuturos = Number(trade.o.L);
         }
@@ -114,6 +114,8 @@ async function start() {
     };
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
+        console.log('TRADE', trade)
+
         console.log('Verificando condições de trade, aguarde...')
 
         if (trade.e === 'balanceUpdate' && Number(trade.d) > 0) {
