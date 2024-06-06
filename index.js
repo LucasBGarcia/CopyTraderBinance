@@ -73,8 +73,7 @@ async function start() {
 
     wsFuture.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
-        console.log('TRADE', trade)
-         console.log('Efetuando trades no futuros, aguarde...');
+        console.log('Efetuando trades no futuros, aguarde...');
         if (trade.o && Number(trade.o.L) > 0) {
             valorAtualFuturos = Number(trade.o.L);
         }
@@ -84,7 +83,6 @@ async function start() {
         if (trade.e === 'ACCOUNT_CONFIG_UPDATE') {
             await handleChangeLeverage(trade.ac);
         }
-        PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
         if (trade.e === 'ORDER_TRADE_UPDATE') {
             dados.ordens.map((ordem) => {
                 if (ordem === trade.o.i) {
@@ -94,17 +92,19 @@ async function start() {
         }
 
         if (trade.e === "ORDER_TRADE_UPDATE") {
+            PorcentagemMaster = await Calcula_procentagem.tradePorcentageMasterFuturos(ValorTotalMasterFuturos, AlavancagemMaster);
             if (!oldTrade) {
-                if ((trade.o.o === 'MARKET' || trade.o.o === 'LIMIT') && trade.o.X === 'NEW') {
-                    await handleNewTradeFutures(trade.o);
-                    oldTrade = false;
-                }
-                if ((trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET') && trade.o.X === 'NEW') {
-                    await handleNewTradeFutures(trade.o);
+                if (trade.o.X === 'NEW') {
+                    if ((trade.o.o === 'MARKET' || trade.o.o === 'LIMIT')) {
+                        await handleNewTradeFutures(trade.o);
+                        oldTrade = false;
+                    }
+                    if ((trade.o.o === 'STOP_MARKET' || trade.o.o === 'TAKE_PROFIT_MARKET')) {
+                        await handleNewTradeFutures(trade.o);
+                    }
                 }
             } else if (trade.o.o === 'MARKET' && trade.o.X === 'FILLED') {
                 await handleNewTradeFutures(trade.o);
-
             }
         }
         if (trade.e === "ORDER_TRADE_UPDATE" && trade.o.o === 'LIMIT' && trade.o.X === 'CANCELED') {
@@ -112,12 +112,10 @@ async function start() {
 
         }
     };
+
     ws.onmessage = async (event) => {
         const trade = JSON.parse(event.data);
-        console.log('TRADE', trade)
-
         console.log('Verificando condições de trade, aguarde...')
-
         if (trade.e === 'balanceUpdate' && Number(trade.d) > 0) {
             const porcentagemMaster = (trade.d / ValorTotalMasterFuturos) * 100;
             const pr = accounts.map(async (acc) => {
@@ -212,21 +210,6 @@ async function handleNewTradeFutures(trade) {
     const promises = accountsFutures.map(handleAccount);
     await handlePromise(promises);
 }
-
-// async function handleNewOrdersFutures(trade) {
-//     const response = {
-//         openPosition: true,
-//         positionAmt: 0
-//     };
-//     const handleAccount = async (acc) => {
-//         const data = await Copy_Trade.copyTradeFutures(trade, acc.apiSecret, acc.apiKey, acc.Name, response, PorcentagemMaster);
-//         return api.newOrderFutures(data, acc.apiKey, acc.apiSecret, acc.Name);
-//     };
-
-
-//     const promises = accounts.map(handleAccount);
-//     await handlePromise(promises);
-// }
 
 async function handleChangeLeverage(trade) {
     AlavancagemMaster = trade.l;

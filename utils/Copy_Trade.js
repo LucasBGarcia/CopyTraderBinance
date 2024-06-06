@@ -80,7 +80,6 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
         const ValorCarteiraCliente = await api.InfoAccountBalanceFuture(apiSecret, apiKey);
         ValorEntrada = Calcula_procentagem.calcularValorPorPorcentagem(ValorCarteiraCliente.valorFutures, PorcentagemMaster, trade.q, valorAtual, apiName);
     }
-    console.log('valorAtual', valorAtual)
     const data = {
         symbol: trade.s,
         side: trade.S,
@@ -88,11 +87,9 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
     };
     // if (trade.q && parseFloat(trade.q)) {
     if (isNewOrder.openPosition) {
-        console.log("ta caindo no valor de entrada primeiro")
         let valorFinalEntrada = ValorEntrada * alavancagemMaster
         data.quantity = Math.abs(valorFinalEntrada).toString();
     } else {
-        console.log("ta caindo no valor de entrada else")
         const positivo = Math.abs(Number(isNewOrder.positionAmt))
         data.quantity = positivo;
     }
@@ -100,9 +97,11 @@ async function copyTradeFutures(trade, apiSecret, apiKey, apiName, isNewOrder, P
     if (trade.p && parseFloat(trade.p)) {
         data.price = trade.p;
     }
+    // if (trade.o !== 'STOP_MARKET' || trade.o !== 'TAKE_PROFIT_MARKET') {
     if ((trade.f && trade.f !== "GTC") || trade.o === 'LIMIT') {
         data.timeInForce = trade.f;
     }
+    // }
     if (trade.sp && parseFloat(trade.sp)) {
         data.stopPrice = trade.sp;
     }
