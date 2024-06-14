@@ -118,7 +118,7 @@ async function start() {
         console.log('Verificando condições de trade, aguarde...')
         if (trade.e === 'balanceUpdate' && Number(trade.d) > 0) {
             const porcentagemMaster = (trade.d / ValorTotalMasterFuturos) * 100;
-            const pr = accounts.map(async (acc) => {
+            const pr = accountsFutures.map(async (acc) => {
                 await Transferencia.Futuros_para_spot(acc.apiKey, acc.apiSecret, acc.Name, porcentagemMaster, trade.a)
                 await loadBalanceMaster()
             })
@@ -126,7 +126,7 @@ async function start() {
 
         } else if (trade.e === 'balanceUpdate' && Number(trade.d) < 0) {
             const porcentagemMaster = (Math.abs(Number(trade.d)) / ValorTotalMasterSpot) * 100;
-            const pr = accounts.map(async (acc) => {
+            const pr = accountsFutures.map(async (acc) => {
                 await Transferencia.Spot_para_futuros(acc.apiKey, acc.apiSecret, acc.Name, porcentagemMaster, trade.a)
                 await loadBalanceMaster()
             })

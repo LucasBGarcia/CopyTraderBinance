@@ -58,9 +58,9 @@ async function CancelOrdersFutures() {
     //apiKey: '5YNaBS2X1nLl8HPgjHo5sBoolfEMxsFNsrsyYJPRP5yxgaoGgMw5vF03gW2NK74'
     // }
     const informacoes = {
-        moeda: '1000XECUSDT',
-        apiSecret: '5YNaBS2X1nLl8HPgjHo5sBoolfEMxsFNsrsyYJPRP5yxgaoGgMw5vF03gW2NK1dh',
-        apiKey: '5uMGKhZjOZ7qM5xloCsti1HLdgIMsQc6Bq7Y0Nh80q2CvtZHtPD7A5JnoohLXoOj'
+        moeda: 'PAR',
+        apiSecret: 'secret',
+        apiKey: 'key'
     }
     const response = await GetOrderFutures(informacoes.moeda, informacoes.apiKey, informacoes.apiSecret);
 

@@ -481,7 +481,7 @@ async function TransferFuturesToSpot(data, apiKey, apiSecret, name) {
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
         console.log(`| FALHOU: Conta ${name} | Transferencia: ${data.asset} ${data.amount} FUTUROS -> SPOT  |`)
-        console.log('| erro', err.response.data, ' |')
+        console.log('| erro', err.response.data?err.response.data: err , ' |')
         console.log('*------------------------------------------------**************------------------------------------------------*')
         // console.error(err.respose ? err.respose : err.message)
     }
