@@ -77,9 +77,7 @@ async function InfoAccountBalanceFuture(apiSecret, apiKey) {
 async function InfoAccount(apiSecret, apiKey) {
     try {
         const timestamp = Date.now();
-        console.log('apisecret recebida', apiSecret)
-        console.log('apiKey recebida', apiKey)
-
+  
         const queryString = `timestamp=${timestamp}`;
 
         const signature = generateSignature(queryString, apiSecret);

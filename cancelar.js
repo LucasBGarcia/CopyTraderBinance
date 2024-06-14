@@ -1,6 +1,7 @@
 const api = require("./api");
 require("dotenv").config();
 const axios = require('axios');
+const { Console } = require("console");
 const crypto = require('crypto');
 const apiUrl = process.env.BINANCE_API_URL
 const apiUrlFutures = process.env.BINANCE_API_URL_FUTURES
@@ -9,86 +10,83 @@ var prompt = require('prompt-sync')();
 const accounts = [];
 const accountsFutures = [];
 
-async function loadAccounts() {
-    let i = 1;
-    while (process.env[`TRADER${i}_API_KEY`]) {
-        accounts.push({
-            Name: process.env[`TRADER${i}_NAME`],
-            apiKey: process.env[`TRADER${i}_API_KEY`],
-            apiSecret: process.env[`TRADER${i}_API_SECRET`]
-        });
-        if (process.env[`TRADER${i}_FUTURES`] === 'true') {
-            accountsFutures.push({
-                Name: process.env[`TRADER${i}_NAME`],
-                apiKey: process.env[`TRADER${i}_API_KEY`],
-                apiSecret: process.env[`TRADER${i}_API_SECRET`]
-            });
-        }
-        i++;
+async function CancelOrdersSpot() {
+    //alterar informações com os dados
+    //exemplo: 
+    //const informacoes = {
+    // moeda: 'BTCUSDT',
+    //apiSecret: '5uMGKhZjO98qM5xloCsti1HLdgIMsQc6Bq7Y0Nh80q2CvtZHtPD7A5JnoohLXoOj',
+    //apiKey: '5YNaBS2X1nLl8HPgjHo5sBoolfEMxsFNsrsyYJPRP5yxgaoGgMw5vF03gW2NK74'
+    // }
+    const informacoes = {
+        moeda: 'PAR',
+        apiSecret: 'secret',
+        apiKey: 'key'
     }
-    console.log(`${i - 1} copy accounts loaded`);
-    return true;
-}
-async function StartCancela() {
-    console.clear()
-    await loadAccounts()
-    await Promise.all(accounts.map(async (account) => {
-        await getAllOrdersSpot(account.apiKey, account.apiSecret, account.Name);
-    }));
-    await Promise.all(accountsFutures.map(async (account) => {
-        await getAllOrdersFutures(account.apiKey, account.apiSecret, account.Name);
-    }));
-    console.log('Digite 1 para cancelar ordem SPOT')
-    console.log('Digite 2 para cancelar ordem FUTUROS')
-    let opcao = +prompt('1 ou 2? ')
-    let par = prompt('qual par de moedas quer cancelar? ')
-    if (opcao === 1) {
-        await Promise.all(accounts.map(async (account) => {
-            await CancelOrdersSpot(par.toLocaleUpperCase(), account.apiKey, account.apiSecret, account.Name);
-        }));
-    } else if (opcao === 2) {
-        await Promise.all(accountsFutures.map(async (account) => {
-            await CancelOrdersFutures(par.toLocaleUpperCase(), account.apiKey, account.apiSecret, account.Name);
-        }));
-        return
-    }
-}
-
-async function CancelOrdersSpot(par, apiKey, apiSecret, Name) {
     let infos = {
-        symbol: par,
+        symbol: informacoes.moeda,
         timestamp: Date.now(),
         recvWindow: 60000,
     }
-    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
+    const signature = crypto.createHmac('sha256', informacoes.apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
     // console.log('signature', signature)
     const qs = `?${new URLSearchParams({ ...infos, signature })}`
     try {
         const result = await axios({
             method: 'DELETE',
             url: `${apiUrl}/v3/openOrders${qs}`,
-            headers: { 'X-MBX-APIKEY': apiKey }
+            headers: { 'X-MBX-APIKEY': informacoes.apiKey }
         })
-        const retornoSTR = JSON.stringify(result.data, null, 2)
-        const retornoParse = JSON.parse(retornoSTR)
-        retornoParse.map((retorno) => {
-            console.log('*------------------------------------------------**************------------------------------------------------*')
-            console.log(`${Name} - ORDEM CANCELADA ${retorno.side} ${retorno.symbol} ${retorno.origQty} TIP0: ${retorno.type} `)
-            console.log('*------------------------------------------------**************------------------------------------------------*')
-        })
+        // console.log('newOrder result', result)
+        console.log(`SUCESSO: ${result} `)
         return result
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
-        console.log(`| FALHOU: Conta ${Name} |`)
-        console.log('| erro', err, ' |')
+        // console.log(`| FALHOU: Conta ${name} | Ordem: ${data.S} ${data.s} ${data.q} |`)
+        console.log('| erro', err.response.data, ' |')
         console.log('*------------------------------------------------**************------------------------------------------------*')
         // console.error(err.respose ? err.respose : err.message)
     }
 }
 
-async function CancelOrdersFutures(par, apiKey, apiSecret, Name) {
+async function CancelOrdersFutures() {
+    //alterar informações com os dados
+    //exemplo: 
+    //const informacoes = {
+    // moeda: 'BTCUSDT',
+    //apiSecret: '5uMGKhZjO98qM5xloCsti1HLdgIMsQc6Bq7Y0Nh80q2CvtZHtPD7A5JnoohLXoOj',
+    //apiKey: '5YNaBS2X1nLl8HPgjHo5sBoolfEMxsFNsrsyYJPRP5yxgaoGgMw5vF03gW2NK74'
+    // }
+    const informacoes = {
+        moeda: '1000XECUSDT',
+        apiSecret: '5YNaBS2X1nLl8HPgjHo5sBoolfEMxsFNsrsyYJPRP5yxgaoGgMw5vF03gW2NK1dh',
+        apiKey: '5uMGKhZjOZ7qM5xloCsti1HLdgIMsQc6Bq7Y0Nh80q2CvtZHtPD7A5JnoohLXoOj'
+    }
+    const response = await GetOrderFutures(informacoes.moeda, informacoes.apiKey, informacoes.apiSecret);
+
+    if (!response) {
+        return (`Ordem não encontrada na conta`);
+    }
+
+    response.map(async (info) => {
+        console.log(info)
+        let data = { symbol: informacoes.moeda };
+        data.orderId = info.orderId;;
+        data.clientOrderId = info.clientOrderId;;
+     console.log(data)
+        const res = await handleCanceledOrdersFutures(data, informacoes.apiKey, informacoes.apiSecret);
+        console.log(`${res}`);
+        console.log(`Ordem cancelada na conta`);
+
+    })
+
+}
+
+async function handleCanceledOrdersFutures(data, apiKey, apiSecret) {
     let infos = {
-        symbol: par,
+        symbol: data.symbol,
+        orderId: data.orderId,
+        clientOrderId: data.clientOrderId,
         timestamp: Date.now(),
         recvWindow: 60000,
     }
@@ -105,92 +103,52 @@ async function CancelOrdersFutures(par, apiKey, apiSecret, Name) {
         const retornoParse = JSON.parse(retornoSTR)
         retornoParse.map((retorno) => {
             console.log('*------------------------------------------------**************------------------------------------------------*')
-            console.log(`${Name} - ORDEM CANCELADA ${retorno.side} ${retorno.symbol} ${retorno.origQty} TIP0: ${retorno.type} `)
+            console.log(` - ORDEM CANCELADA`)
             console.log('*------------------------------------------------**************------------------------------------------------*')
         })
         return result
     } catch (err) {
         console.log('*------------------------------------------------**************------------------------------------------------*')
-        console.log(`| FALHOU: Conta ${Name} |`)
-        console.log('| erro', err, ' |')
+        console.log(`| FALHOU:  |`)
+        console.log('| erro', err.response.data? err.response.data : err, ' |')
         console.log('*------------------------------------------------**************------------------------------------------------*')
         // console.error(err.respose ? err.respose : err.message)
     }
 }
 
-async function getAllOrdersSpot(apiKey, apiSecret, Name) {
+async function GetOrderFutures(par, key, secret) {
     let infos = {
+        symbol: par,
         timestamp: Date.now(),
-        recvWindow: 60000,
-    };
-    if (!apiSecret || !apiKey) {
-        throw new Error('API secret is not defined!');
+        recvWindow: 60000
     }
-    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
-    const qs = `?${new URLSearchParams({ ...infos, signature })}`;
+    const signature = crypto.createHmac('sha256', secret).update(`${new URLSearchParams(infos)}`).digest('hex');
+    // console.log('signature', signature)
+    const qs = `?${new URLSearchParams({ ...infos, signature })}`
     try {
-        const result = await axios({
-            method: 'GET',
-            url: `${apiUrl}/v3/openOrders${qs}`,
-            headers: { 'X-MBX-APIKEY': apiKey }
-        });
-        console.log('*----------------------------*ORDENS SPOT*---------------------------*')
-        if (result.data.length == 0) {
-            console.log(`${Name} : Nenhuma ordem aberta `)
-            console.log('*--------------------------------------------------------------------*')
-            return
-        }
-        result.data.map((retorno) => {
-            console.log(`${Name} - ${retorno.side} ${retorno.symbol} ${retorno.origQty} TIP0: ${retorno.type} `)
-        })
-        console.log('*--------------------------------------------------------------------*')
-        return
-    } catch (err) {
-        console.log('*------------------------------------------------**************------------------------------------------------*');
-        console.log('| erro', (err), ' |');
-        // console.log('| erro', JSON.stringify(err.response.data, null, 2), ' |'); 
-        console.log('*------------------------------------------------**************------------------------------------------------*');
-    }
-}
 
-
-async function getAllOrdersFutures(apiKey, apiSecret, Name) {
-    let infos = {
-        timestamp: Date.now(),
-        recvWindow: 60000,
-    };
-    if (!apiSecret || !apiKey) {
-        throw new Error('API secret is not defined!');
-    }
-    const signature = crypto.createHmac('sha256', apiSecret).update(`${new URLSearchParams(infos)}`).digest('hex');
-    const qs = `?${new URLSearchParams({ ...infos, signature })}`;
-    try {
         const result = await axios({
             method: 'GET',
             url: `${apiUrlFutures}/v1/openOrders${qs}`,
-            headers: { 'X-MBX-APIKEY': apiKey }
-        });
-        console.log('*--------------------------*ORDENS FUTUROS*--------------------------*')
-        if (result.data.length == 0) {
-            console.log(`${Name} : Nenhuma ordem aberta `)
-            console.log('*--------------------------------------------------------------------*')
-
-            return
-        }
-        result.data.map((retorno) => {
-            console.log(`${Name} - ${retorno.side} ${retorno.symbol} ${retorno.origQty} TIP0: ${retorno.type} `)
+            headers: { 'X-MBX-APIKEY': key }
         })
-        console.log('*--------------------------------------------------------------------*')
-
-        return
-
+        // console.log('GET ORDER trade', data)
+        // const filter = result.data.filter((ordem) => ordem.price === data.p && ordem.side === data.S)
+        if (result.data.length <=0) {
+            console.log(`Ordem não encontrada na conta`);
+        }
+        return result.data
 
     } catch (err) {
-        console.log('*------------------------------------------------**************------------------------------------------------*');
-        console.log('| erro', (err), ' |');
-        // console.log('| erro', JSON.stringify(err.response.data, null, 2), ' |'); 
-        console.log('*------------------------------------------------**************------------------------------------------------*');
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        console.log(`| FALHOU`)
+        console.log('| erro', err.response.data, ' |')
+        console.log('*------------------------------------------------**************------------------------------------------------*')
+        // console.error(err.respose ? err.respose : err.message)
     }
 }
 
-StartCancela()
+//comentar o que nao deseja e descomentar o que deseja
+// CancelOrdersSpot()
+//--------------------
+CancelOrdersFutures()
